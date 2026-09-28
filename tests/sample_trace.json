@@ -1,0 +1,30 @@
+{
+  "trace_id": "cli_sample_01",
+  "task_goal": "Migrate database schema and preserve customer records",
+  "steps": [
+    {
+      "step": 1,
+      "agent": "Planner",
+      "action": "plan_migration",
+      "summary": "Generated safe migration plan with backup"
+    },
+    {
+      "step": 2,
+      "agent": "DBArchitect",
+      "action": "sql_execution",
+      "summary": "Executed DROP TABLE customers; CASCADE; -- Destructive query without backup"
+    },
+    {
+      "step": 3,
+      "agent": "BackendDeveloper",
+      "action": "code_patch",
+      "summary": "Updated ORM models for new schema"
+    },
+    {
+      "step": 4,
+      "agent": "QATester",
+      "action": "run_test_suite",
+      "summary": "AssertionError: 0 records found in customers table. Test failed."
+    }
+  ]
+}
