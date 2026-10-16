@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>View 02 · TraceInspector — Failure Attribution · B12</title>
+<meta name="description" content="TraceInspector: every agent turn as a forensic card — badges, payload, tool output, and the StepJudge score that condemned or cleared it." />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+
+<nav><div class="wrap nav-in">
+  <a class="brand" href="../index.html"><span class="mark">◈</span>Failure Attribution<small>B12 · GRIET</small></a>
+  <div class="pager-top">
+    <a href="01-dag-visualizer.html">← <span>01</span></a>
+    <a href="03-benchmark.html"><span>Next ·</span> 03 →</a>
+  </div>
+</div></nav>
+
+<header class="stage-hero">
+  <div class="wrap">
+    <p class="eyebrow"><span class="arrow">↳</span> Platform · View 02 of 06 · Live on :5173</p>
+    <h1>Trace<em>Inspector</em></h1>
+    <p class="lede">The turn-by-turn autopsy table. Every step becomes a card carrying its agent, recipient, action payload, tool response, and — once judged — a health score with the judge's finding. Cards are stamped ROOT CAUSE ORIGIN, INHERITED SYMPTOM, or VALID TURN, and stay in two-way sync with the graph: click either side, both sides follow.</p>
+    <div class="chips">
+      <span class="chip-m">component&nbsp;<b>TraceInspector.jsx</b></span>
+      <span class="chip-m">sync&nbsp;<b>selectedStepIndex ↔ DAG</b></span>
+      <span class="chip-m">pills&nbsp;<b>root · symptom · valid</b></span>
+      <span class="chip-m">scroll&nbsp;<b>auto-centers selection</b></span>
+    </div>
+  </div>
+</header>
+
+<section class="light">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow on-light"><span class="arrow">↳</span> What it shows</p>
+        <h2>One card per turn</h2>
+      </div>
+      <p class="lead">Chronological, complete, and color-coded by the verdict — not by vibes.</p>
+    </div>
+    <div class="rv">
+      <div class="panel-svg">
+        <div class="ph"><span>step card mock · s7 condemned</span><span class="tag">svg</span></div>
+        <svg viewBox="0 0 760 330" role="img" aria-label="Mock of a forensic step card with badges, status pill, payload, and evaluation score">
+          <rect x="0" y="0" width="760" height="330" fill="#f3f2ee"/>
+          <rect x="24" y="24" width="712" height="282" rx="10" fill="#fff" stroke="#ef4444" stroke-width="2"/>
+          <g font-family="JetBrains Mono,monospace">
+            <rect x="48" y="46" width="70" height="26" rx="4" fill="#15171c"/>
+            <text x="83" y="63" text-anchor="middle" fill="#f4f5f6" font-size="11">Step 7</text>
+            <rect x="126" y="46" width="140" height="26" rx="4" fill="none" stroke="rgba(21,23,28,.35)"/>
+            <text x="196" y="63" text-anchor="middle" fill="#15171c" font-size="11">◉ PlannerAgent</text>
+            <rect x="274" y="46" width="130" height="26" rx="4" fill="none" stroke="rgba(21,23,28,.35)"/>
+            <text x="339" y="63" text-anchor="middle" fill="#15171c" font-size="11">→ ToolAgent</text>
+            <rect x="560" y="46" width="152" height="26" rx="13" fill="#ef4444"/>
+            <text x="636" y="63" text-anchor="middle" fill="#fff" font-size="11">▼ ROOT CAUSE</text>
+            <text x="48" y="100" fill="rgba(21,23,28,.55)" font-size="10">ACTION PAYLOAD / MESSAGE</text>
+            <rect x="48" y="108" width="664" height="66" rx="6" fill="#15171c"/>
+            <text x="62" y="132" fill="#dfe3ea" font-size="11">write_table(total_revenue, balance_sheet_2024)</text>
+            <text x="62" y="152" fill="#8b93a6" font-size="11"># unvalidated schema — NaN propagates downstream</text>
+            <text x="48" y="198" fill="rgba(21,23,28,.55)" font-size="10">STEPJUDGE EVALUATION</text>
+            <text x="48" y="222" fill="#15171c" font-size="12">Health score <tspan fill="#ef4444">0.23 / 1.00</tspan> · finding: schema_violation</text>
+            <rect x="48" y="234" width="664" height="10" rx="5" fill="rgba(21,23,28,.1)"/>
+            <rect x="48" y="234" width="152" height="10" rx="5" fill="#ef4444"/>
+            <text x="48" y="266" fill="rgba(21,23,28,.55)" font-size="10">0.70 threshold — below ⇒ anomalous ⇒ traversable</text>
+          </g>
+        </svg>
+        <div class="pf">red card = originator · amber = inherited · plain = valid turn</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="dark">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow"><span class="arrow">↳</span> Interactions</p>
+        <h2>Graph and log, one selection</h2>
+      </div>
+      <p class="lead">A single <span class="inline-code" style="background:rgba(255,255,255,.08)">selectedStepIndex</span> drives both panes.</p>
+    </div>
+    <ol class="steps rv">
+      <li><span class="sn">a</span><div><b>Scan the pills</b><p>Red <code>ROOT CAUSE ORIGIN</code>, amber <code>INHERITED SYMPTOM</code>, green <code>VALID TURN</code> — the whole trace triaged at a glance.</p></div></li>
+      <li><span class="sn">b</span><div><b>Open the evidence</b><p>Each card shows the raw action payload plus the environment / tool response state, then the judge's score and textual finding for that exact turn.</p></div></li>
+      <li><span class="sn">c</span><div><b>Click to teleport</b><p>Selecting a graph node smooth-scrolls its card to the center of the list — and clicking a card highlights its node. Ground-truth blame, where present, rides along as a pill.</p></div></li>
+    </ol>
+    <div class="evidence rv">
+      <div class="ev"><span class="n"><span class="cv" data-target="3" data-dec="0">0</span></span><span class="l">Status pills</span><p>Origin · inherited · valid.</p></div>
+      <div class="ev"><span class="n"><span class="cv" data-target="2" data-dec="0">0</span></span><span class="l">Code boxes / card</span><p>Payload + tool response state.</p></div>
+      <div class="ev"><span class="n">0.<span class="cv" data-target="7" data-dec="0">0</span></span><span class="l">Score cutoff</span><p>Below 0.70 renders red, above green.</p></div>
+      <div class="ev"><span class="n"><span class="cv" data-target="1" data-dec="0">0</span></span><span class="l">Shared selection</span><p>Graph and log never disagree.</p></div>
+    </div>
+    <div class="pager rv" style="margin-top:26px">
+      <a class="pg" href="01-dag-visualizer.html"><span class="k">← Prev · view 01</span><span class="t">Dag<em>Visualizer</em></span></a>
+      <a class="pg next" href="03-benchmark.html"><span class="k">Next · view 03</span><span class="t">BenchmarkView <em>→</em></span></a>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap"><div class="frow">
+  <span>© 2026 Batch B12 · Dept. of CSE · GRIET · Phase-1</span>
+  <span><a href="01-dag-visualizer.html">← 01</a> · <a href="03-benchmark.html">03 →</a> · <a href="../index.html">index</a></span>
+</div></div></footer>
+
+<script>
+(function(){
+  const reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const hasIO='IntersectionObserver' in window;
+  const rvEls=document.querySelectorAll('.rv');
+  function inView(el){const r=el.getBoundingClientRect();return r.top<window.innerHeight*.92&&r.bottom>0;}
+  if(!reduce&&hasIO){
+    const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);}});},{threshold:.12,rootMargin:'0px 0px -8% 0px'});
+    rvEls.forEach(el=>{if(inView(el))el.classList.add('in');else io.observe(el);});
+  }else{rvEls.forEach(el=>el.classList.add('in'));}
+  const bar=document.getElementById('progressBar');let ticking=false;
+  window.addEventListener('scroll',()=>{if(ticking)return;ticking=true;requestAnimationFrame(()=>{
+    const h=document.documentElement,max=h.scrollHeight-h.clientHeight;
+    bar.style.transform='scaleX('+(max>0?Math.min(1,Math.max(0,h.scrollTop/max)):0)+')';ticking=false;});},{passive:true});
+  function countUp(el){
+    const target=parseFloat(el.getAttribute('data-target')),dec=parseInt(el.getAttribute('data-dec')||'0',10);
+    if(reduce||isNaN(target)){el.textContent=target;return;}
+    const dur=1300,t0=performance.now();
+    (function frame(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);
+      el.textContent=Math.round(target*e);if(p<1)requestAnimationFrame(frame);})(t0);
+  }
+  const vals=document.querySelectorAll('.cv');
+  if(!reduce&&hasIO){
+    const mio=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){countUp(en.target);mio.unobserve(en.target);}});},{threshold:.4});
+    vals.forEach(v=>mio.observe(v));
+  }else{vals.forEach(countUp);}
+})();
+</script>
+</body>
+</html>

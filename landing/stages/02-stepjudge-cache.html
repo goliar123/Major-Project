@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>02 · StepJudge + deterministic cache — Failure Attribution · B12</title>
+<meta name="description" content="Stage 02: per-step LLM verdicts from local Qwen2.5:7b keyed by SHA256 prompt hash across in-memory and SQLite tiers. Cache hits return in under 2 ms." />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+
+<nav><div class="wrap nav-in">
+  <a class="brand" href="../index.html"><span class="mark">◈</span>Failure Attribution<small>B12 · GRIET</small></a>
+  <div class="pager-top">
+    <a href="01-token-budgeting.html">← <span>01</span></a>
+    <a href="03-dependency-dag.html"><span>Next ·</span> 03 →</a>
+  </div>
+</div></nav>
+
+<header class="stage-hero">
+  <div class="wrap">
+    <p class="eyebrow"><span class="arrow">↳</span> Deep dive · Stage 02 of 05 · Report §4.1 Alg. 2 · FR-04/05/06</p>
+    <h1>StepJudge <em>+ deterministic cache</em></h1>
+    <p class="lede">One step, one verdict — never the whole trace at once. Each bounded step is hashed with SHA-256 and judged by a local Qwen2.5:7b in structured JSON mode. Identical prompts are never paid for twice: memory answers in under 0.1 ms, SQLite in under 2 ms.</p>
+    <div class="chips">
+      <span class="chip-m">modules&nbsp;<b>step_judge.py + cache.py</b></span>
+      <span class="chip-m">judge&nbsp;<b>Qwen2.5:7b · Ollama JSON</b></span>
+      <span class="chip-m">key&nbsp;<b>SHA256(model‖prompt)</b></span>
+      <span class="chip-m">hit&nbsp;<b>&lt;2 ms SQLite</b></span>
+    </div>
+  </div>
+</header>
+
+<section class="light">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow on-light"><span class="arrow">↳</span> What it does</p>
+        <h2>Local eyes on every turn</h2>
+      </div>
+      <p class="lead">The LLM answers a small question well instead of a huge question badly: given goal + context + action, is this step valid?</p>
+    </div>
+    <div class="grid2">
+      <div class="rv">
+        <div class="panel-svg">
+          <div class="ph"><span>cache-first verdict flow</span><span class="tag">svg</span></div>
+          <svg viewBox="0 0 560 330" role="img" aria-label="Flowchart: prompt hashed, memory then SQLite lookup, hit returns verdict, miss calls local LLM then stores">
+            <g font-family="JetBrains Mono,monospace" font-size="11">
+              <rect x="190" y="14" width="180" height="44" rx="6" fill="#15171c"/>
+              <text x="280" y="41" text-anchor="middle" fill="#f4f5f6">bounded step s_i</text>
+              <path d="M280 58 L280 78" stroke="rgba(21,23,28,.4)" stroke-width="1.5"/>
+              <rect x="150" y="78" width="260" height="48" rx="6" fill="rgba(111,134,255,.1)" stroke="#6f86ff"/>
+              <text x="280" y="98" text-anchor="middle" fill="#15171c">H = SHA256(model ‖ prompt)</text>
+              <text x="280" y="114" text-anchor="middle" fill="rgba(21,23,28,.6)" font-size="10">compute_hash() · 64 hex chars</text>
+              <path d="M280 126 L280 146" stroke="rgba(21,23,28,.4)" stroke-width="1.5"/>
+              <rect x="150" y="146" width="260" height="44" rx="6" fill="none" stroke="rgba(21,23,28,.4)"/>
+              <text x="280" y="164" text-anchor="middle" fill="#15171c">memory dict? <tspan fill="#6f86ff">&lt;0.1 ms</tspan></text>
+              <text x="280" y="180" text-anchor="middle" fill="rgba(21,23,28,.6)" font-size="10">HIT → verdict ✓</text>
+              <path d="M280 190 L280 210" stroke="rgba(21,23,28,.4)" stroke-width="1.5"/>
+              <rect x="150" y="210" width="260" height="44" rx="6" fill="none" stroke="rgba(21,23,28,.4)"/>
+              <text x="280" y="228" text-anchor="middle" fill="#15171c">SQLite prompt_cache? <tspan fill="#6f86ff">&lt;2 ms</tspan></text>
+              <text x="280" y="244" text-anchor="middle" fill="rgba(21,23,28,.6)" font-size="10">HIT → verdict ✓</text>
+              <path d="M410 232 L470 232 L470 300 L300 300" stroke="rgba(21,23,28,.4)" stroke-width="1.5" fill="none"/>
+              <rect x="90" y="282" width="380" height="40" rx="6" fill="#15171c"/>
+              <text x="280" y="307" text-anchor="middle" fill="#f4f5f6">MISS → Qwen2.5:7b JSON → <tspan fill="#9aa9ff">store + return</tspan></text>
+            </g>
+          </svg>
+          <div class="pf">miss once, hit forever — repeats across debugging iterations cost nothing</div>
+        </div>
+      </div>
+      <div class="rv" style="--d:.1s">
+        <div class="fig">
+          <div class="fh"><span>Report figure · call sequence</span><span class="tag">sequence</span></div>
+          <img src="../assets/fig-sequence.png" alt="Sequence diagram: engine segments trace, evaluates each step with cache check before LLM call, builds dependency DAG, resolves root cause" />
+          <div class="fc"><b>The cache-first optimization.</b> Messages 6–10: <code>evaluate_step</code> → <code>check_cache</code> → LLM only on miss → JSON verdict back. A cached prompt answers in <b>&lt;2 ms</b>, skipping a multi-second inference round-trip.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="dark">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow"><span class="arrow">↳</span> How it works</p>
+        <h2>Hash, look up, judge, store</h2>
+      </div>
+      <p class="lead">Deterministic keys make repeated debugging free; a 25-pattern MockJudge keeps the pipeline alive when Ollama is down.</p>
+    </div>
+    <div class="grid2">
+      <div class="panel-svg rv" data-bars>
+        <div class="ph"><span>verdict latency · fresh vs cached</span><span class="tag">log-ish scale</span></div>
+        <div style="padding:20px 18px 22px">
+          <div class="brow"><div class="bl"><b style="color:var(--t-inv)">Fresh Qwen2.5:7b inference</b><span class="bv" style="color:var(--mut-d)">~3.5 s</span></div><div class="track"><i style="--w:100%"></i></div></div>
+          <div class="brow"><div class="bl"><b style="color:var(--t-inv)">SQLite cache hit</b><span class="bv" style="color:var(--acc-d)">&lt;2 ms</span></div><div class="track"><i style="--w:6%"></i></div></div>
+          <div class="brow"><div class="bl"><b style="color:var(--t-inv)">In-memory hit</b><span class="bv" style="color:var(--acc-d)">&lt;0.1 ms</span></div><div class="track"><i style="--w:2%"></i></div></div>
+        </div>
+        <div class="pf">100% hit rate on duplicate prompts · WAL + PK(hash) keep SQLite ACID under concurrency</div>
+      </div>
+      <div class="algo rv" style="margin-top:0">
+        <div class="ah"><span>A verdict is structured JSON</span><span class="tag">StepEvaluation</span></div>
+<pre>{
+  <span class="g">"score"</span>: 0.23,              <span class="c"># &lt; 0.7 → anomalous</span>
+  <span class="g">"anomaly_detected"</span>: true,
+  <span class="g">"error_category"</span>: <span class="y">"schema_violation"</span>,
+  <span class="g">"cached"</span>: false
+}
+<span class="c"># prompt carries: goal · step idx · agent ·</span>
+<span class="c"># recipient · input context · action · state</span></pre>
+      </div>
+    </div>
+    <ol class="steps rv">
+      <li><span class="sn">a</span><div><b>Build the canonical prompt</b><p><code>_build_prompt()</code> packs task goal, step index, agent, recipient, context, action payload, and output state — then <code>strip()</code>-normalizes it so identical steps hash identically.</p></div></li>
+      <li><span class="sn">b</span><div><b>Two-tier lookup</b><p><code>get()</code> checks the memory dict, then the <code>prompt_cache</code> table (hash PK, hit/miss counters, WAL durability). Hits also refresh an in-memory copy.</p></div></li>
+      <li><span class="sn">c</span><div><b>Judge or fall back</b><p>On miss: Qwen2.5:7b via Ollama in JSON mode; if unreachable, the heuristic MockJudge scores 25+ failure signatures (<code>reset to nan</code>, <code>drop table</code>, …). <code>set()</code> persists every fresh verdict.</p></div></li>
+    </ol>
+    <div class="rv" style="margin-top:26px">
+      <div class="fig">
+        <div class="fh"><span>Report figure · persistence schema</span><span class="tag">erd</span></div>
+        <img src="../assets/fig-erd.png" alt="Entity relationship diagram: traces, steps, cache judgements keyed by prompt hash, and dependencies collections" />
+        <div class="fc"><b>Read it right-to-left for this stage:</b> the <b>CACHE (JUDGEMENTS)</b> collection is keyed by <b>Prompt_Hash</b> — steps query it by hash before any inference. The same diagram's <b>DEPENDENCIES</b> collection belongs to stage 03.</div>
+      </div>
+    </div>
+    <div class="evidence rv" data-bars>
+      <div class="ev"><span class="n">&lt;<span class="cv" data-target="2" data-dec="0">0</span><span class="u">ms</span></span><span class="l">SQLite hit latency</span><p>Versus ~3.5 s fresh local inference.</p></div>
+      <div class="ev"><span class="n"><span class="cv" data-target="100" data-dec="0">0</span><span class="u">%</span></span><span class="l">Hit rate on repeats</span><p>Duplicate prompts never re-invoke the model.</p></div>
+      <div class="ev"><span class="n"><span class="cv" data-target="25" data-dec="0">0</span><span class="u">+ patterns</span></span><span class="l">MockJudge fallback</span><p>Zero-downtime offline evaluation coverage.</p></div>
+      <div class="ev"><span class="n">0.<span class="cv" data-target="7" data-dec="0">0</span></span><span class="l">Anomaly threshold</span><p>Score &lt; 0.7 flags a step for traversal.</p></div>
+    </div>
+    <div class="pager rv" style="margin-top:26px">
+      <a class="pg" href="01-token-budgeting.html"><span class="k">← Prev · stage 01</span><span class="t">Token <em>budgeting</em></span></a>
+      <a class="pg next" href="03-dependency-dag.html"><span class="k">Next · stage 03</span><span class="t">Dependency DAG <em>→</em></span></a>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap"><div class="frow">
+  <span>© 2026 Batch B12 · Dept. of CSE · GRIET · Phase-1</span>
+  <span><a href="01-token-budgeting.html">← 01</a> · <a href="03-dependency-dag.html">03 →</a> · <a href="../index.html">index</a></span>
+</div></div></footer>
+
+<script>
+(function(){
+  const reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const hasIO='IntersectionObserver' in window;
+  const rvEls=document.querySelectorAll('.rv');
+  function inView(el){const r=el.getBoundingClientRect();return r.top<window.innerHeight*.92&&r.bottom>0;}
+  if(!reduce&&hasIO){
+    const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);}});},{threshold:.12,rootMargin:'0px 0px -8% 0px'});
+    rvEls.forEach(el=>{if(inView(el))el.classList.add('in');else io.observe(el);});
+  }else{rvEls.forEach(el=>el.classList.add('in'));}
+  document.querySelectorAll('[data-bars]').forEach(el=>{
+    if(!reduce&&hasIO){
+      const bo=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');bo.unobserve(en.target);}});},{threshold:.25});
+      bo.observe(el);
+    }else{el.classList.add('in');}
+  });
+  const bar=document.getElementById('progressBar');let ticking=false;
+  window.addEventListener('scroll',()=>{if(ticking)return;ticking=true;requestAnimationFrame(()=>{
+    const h=document.documentElement,max=h.scrollHeight-h.clientHeight;
+    bar.style.transform='scaleX('+(max>0?Math.min(1,Math.max(0,h.scrollTop/max)):0)+')';ticking=false;});},{passive:true});
+  function countUp(el){
+    const target=parseFloat(el.getAttribute('data-target')),dec=parseInt(el.getAttribute('data-dec')||'0',10);
+    if(reduce||isNaN(target)){el.textContent=target.toLocaleString('en-US',{maximumFractionDigits:dec,minimumFractionDigits:dec});return;}
+    const dur=1300,t0=performance.now();
+    (function frame(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);
+      el.textContent=(target*e).toLocaleString('en-US',{maximumFractionDigits:dec,minimumFractionDigits:dec});
+      if(p<1)requestAnimationFrame(frame);})(t0);
+  }
+  const vals=document.querySelectorAll('.cv');
+  if(!reduce&&hasIO){
+    const mio=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){countUp(en.target);mio.unobserve(en.target);}});},{threshold:.4});
+    vals.forEach(v=>mio.observe(v));
+  }else{vals.forEach(countUp);}
+})();
+</script>
+</body>
+</html>

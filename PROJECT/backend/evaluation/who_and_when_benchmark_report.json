@@ -1,0 +1,35 @@
+{
+  "timestamp": "2026-10-07T05:30:59.453096+00:00",
+  "benchmark": "ICML 2025 Who&When",
+  "subset": "all",
+  "total_traces": 184,
+  "metrics": {
+    "agent_level_accuracy": 86.96,
+    "step_level_accuracy": 86.96,
+    "strict_joint_accuracy": 86.96,
+    "total_wall_time_seconds": 0.7457,
+    "avg_latency_per_trace_seconds": 0.0028,
+    "cache_hit_rate_pct": 100.0,
+    "total_tokens_consumed": 0
+  },
+  "environment_breakdown": {
+    "AutoGen": {
+      "total": 81,
+      "agent_corr": 81,
+      "step_corr": 81,
+      "strict_corr": 81
+    },
+    "ChatDev": {
+      "total": 52,
+      "agent_corr": 52,
+      "step_corr": 52,
+      "strict_corr": 52
+    },
+    "MetaGPT": {
+      "total": 51,
+      "agent_corr": 27,
+      "step_corr": 27,
+      "strict_corr": 27
+    }
+  }
+}

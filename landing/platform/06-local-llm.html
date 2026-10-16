@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>View 06 · Local LLM — Failure Attribution · B12</title>
+<meta name="description" content="Local LLM: Qwen2.5:7b over Ollama judges every step on-machine, with a 25-pattern MockJudge fallback that keeps diagnosis alive offline." />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+
+<nav><div class="wrap nav-in">
+  <a class="brand" href="../index.html"><span class="mark">◈</span>Failure Attribution<small>B12 · GRIET</small></a>
+  <div class="pager-top">
+    <a href="05-telemetry.html">← <span>05</span></a>
+    <a href="../index.html#platform"><span>Platform ·</span> ↑</a>
+  </div>
+</div></nav>
+
+<header class="stage-hero">
+  <div class="wrap">
+    <p class="eyebrow"><span class="arrow">↳</span> Platform · View 06 of 06 · Ollama on :11434</p>
+    <h1>Local <em>LLM</em></h1>
+    <p class="lede">No cloud, no keys, no per-token bill. A locally hosted Qwen2.5:7b answers every StepJudge prompt in structured JSON mode over an OpenAI-compatible endpoint — and if the daemon is ever unreachable, a calibrated 25-pattern MockJudge takes over so the pipeline never goes dark. Failure traces stay on the machine: a requirement, not a preference, for forensics.</p>
+    <div class="chips">
+      <span class="chip-m">client&nbsp;<b>llm_client.py</b></span>
+      <span class="chip-m">daemon&nbsp;<b>Ollama :11434</b></span>
+      <span class="chip-m">model&nbsp;<b>Qwen2.5:7b · JSON</b></span>
+      <span class="chip-m">fallback&nbsp;<b>MockJudge · 25+ regex</b></span>
+    </div>
+  </div>
+</header>
+
+<section class="light">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow on-light"><span class="arrow">↳</span> What it is</p>
+        <h2>Brains on-prem, backup in code</h2>
+      </div>
+      <p class="lead">Traces withivales stay on the machine — a requirement, not a preference, for failure forensics.</p>
+    </div>
+    <div class="rv">
+      <div class="panel-svg">
+        <div class="ph"><span>judge routing · miss path</span><span class="tag">svg</span></div>
+        <svg viewBox="0 0 760 250" role="img" aria-label="Cache miss routes to local Qwen model, or to the MockJudge fallback when Ollama is unreachable">
+          <g font-family="JetBrains Mono,monospace" font-size="11">
+            <rect x="24" y="90" width="150" height="70" rx="8" fill="#15171c"/>
+            <text x="99" y="118" text-anchor="middle" fill="#f4f5f6">cache MISS</text>
+            <text x="99" y="138" text-anchor="middle" fill="#8b93a6" font-size="10">fresh prompt</text>
+            <path d="M174 125 L226 125" stroke="rgba(21,23,28,.4)" stroke-width="1.5"/>
+            <path d="M174 125 L226 125" stroke="#6f86ff" stroke-width="1.5" class="anim-dash" fill="none"/>
+            <rect x="226" y="60" width="200" height="100" rx="8" fill="rgba(111,134,255,.1)" stroke="#6f86ff" stroke-width="1.5"/>
+            <text x="326" y="88" text-anchor="middle" fill="#15171c">Ollama :11434</text>
+            <text x="326" y="108" text-anchor="middle" fill="#6f86ff">Qwen2.5:7b · JSON</text>
+            <text x="326" y="126" text-anchor="middle" fill="rgba(21,23,28,.6)" font-size="10">score · anomaly · category</text>
+            <text x="326" y="142" text-anchor="middle" fill="rgba(21,23,28,.6)" font-size="10">threshold 0.7</text>
+            <path d="M326 160 L326 196 L620 196 L620 130" stroke="rgba(21,23,28,.35)" stroke-width="1.5" stroke-dasharray="4 4" fill="none"/>
+            <rect x="452" y="90" width="180" height="70" rx="8" fill="#fff" stroke="rgba(21,23,28,.35)" stroke-dasharray="5 4"/>
+            <text x="542" y="114" text-anchor="middle" fill="#15171c">daemon down?</text>
+            <text x="542" y="132" text-anchor="middle" fill="rgba(21,23,28,.6)" font-size="10">MockJudge · 25+ patterns</text>
+            <text x="542" y="146" text-anchor="middle" fill="rgba(21,23,28,.6)" font-size="10">zero downtime</text>
+            <rect x="648" y="90" width="88" height="70" rx="8" fill="#15171c"/>
+            <text x="692" y="118" text-anchor="middle" fill="#f4f5f6">verdict</text>
+            <text x="692" y="138" text-anchor="middle" fill="#9aa9ff" font-size="10">+ store</text>
+            <path d="M426 125 L452 125" stroke="rgba(21,23,28,.35)" stroke-width="1.5"/>
+            <path d="M632 125 L648 125" stroke="rgba(21,23,28,.35)" stroke-width="1.5"/>
+          </g>
+          <text x="24" y="208" fill="rgba(21,23,28,.6)" font-size="11" font-family="JetBrains Mono,monospace">settings switch model (Qwen2.5:7b · Gemini · Mock) · threshold (default 0.7) · backend (SQLite / Redis)</text>
+        </svg>
+        <div class="pf">local-first with a rule-based parachute — forensics must work on a plane with no wifi</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="dark">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow"><span class="arrow">↳</span> Why local</p>
+        <h2>Sovereignty is a feature</h2>
+      </div>
+      <p class="lead">Failure traces contain proprietary prompts, tool args, and data — shipping them to a vendor API is a non-starter.</p>
+    </div>
+    <ol class="steps rv">
+      <li><span class="sn">a</span><div><b>Judge on-machine</b><p>Qwen2.5:7b serves structured verdicts (validity, score, anomaly flag, category) through Ollama's OpenAI-compatible endpoint — deterministic temperature, JSON mode, zero egress.</p></div></li>
+      <li><span class="sn">b</span><div><b>Survive outages</b><p>If the daemon is unreachable, the MockJudge scores the step against 25+ calibrated failure signatures (<code>reset to nan</code>, <code>drop table</code>, …) so diagnosis degrades gracefully instead of failing.</p></div></li>
+      <li><span class="sn">c</span><div><b>Stay configurable</b><p>Settings expose model selection, the anomaly threshold, and cache backend switching — the same knobs the report's §3 settings view specifies.</p></div></li>
+    </ol>
+    <div class="evidence rv">
+      <div class="ev"><span class="n">:<span class="cv" data-target="11434" data-dec="0">0</span></span><span class="l">Ollama endpoint</span><p>Localhost HTTP, OpenAI-compatible.</p></div>
+      <div class="ev"><span class="n"><span class="cv" data-target="25" data-dec="0">0</span><span class="u">+ patterns</span></span><span class="l">MockJudge coverage</span><p>Regex + substring failure signatures.</p></div>
+      <div class="ev"><span class="n">0.<span class="cv" data-target="7" data-dec="0">0</span></span><span class="l">Score threshold</span><p>Below ⇒ anomalous, switchable.</p></div>
+      <div class="ev"><span class="n">$0.<span class="cv" data-target="0" data-dec="0">0</span><span class="cv" data-target="0" data-dec="0">0</span></span><span class="l">Inference spend</span><p>No vendor API in the loop.</p></div>
+    </div>
+    <div class="pager rv" style="margin-top:26px">
+      <a class="pg" href="05-telemetry.html"><span class="k">← Prev · view 05</span><span class="t">Tele<em>metry</em></span></a>
+      <a class="pg next" href="../index.html#platform"><span class="k">Finish · landing</span><span class="t">Platform rows <em>↗</em></span></a>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap"><div class="frow">
+  <span>© 2026 Batch B12 · Dept. of CSE · GRIET · Phase-1</span>
+  <span><a href="05-telemetry.html">← 05</a> · <a href="../index.html#platform">platform ↑</a> · <a href="../index.html">index</a></span>
+</div></div></footer>
+
+<script>
+(function(){
+  const reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const hasIO='IntersectionObserver' in window;
+  const rvEls=document.querySelectorAll('.rv');
+  function inView(el){const r=el.getBoundingClientRect();return r.top<window.innerHeight*.92&&r.bottom>0;}
+  if(!reduce&&hasIO){
+    const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);}});},{threshold:.12,rootMargin:'0px 0px -8% 0px'});
+    rvEls.forEach(el=>{if(inView(el))el.classList.add('in');else io.observe(el);});
+  }else{rvEls.forEach(el=>el.classList.add('in'));}
+  const bar=document.getElementById('progressBar');let ticking=false;
+  window.addEventListener('scroll',()=>{if(ticking)return;ticking=true;requestAnimationFrame(()=>{
+    const h=document.documentElement,max=h.scrollHeight-h.clientHeight;
+    bar.style.transform='scaleX('+(max>0?Math.min(1,Math.max(0,h.scrollTop/max)):0)+')';ticking=false;});},{passive:true});
+  function countUp(el){
+    const target=parseFloat(el.getAttribute('data-target')),dec=parseInt(el.getAttribute('data-dec')||'0',10);
+    if(reduce||isNaN(target)){el.textContent=target;return;}
+    const dur=1300,t0=performance.now();
+    (function frame(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);
+      el.textContent=Math.round(target*e).toLocaleString('en-US');if(p<1)requestAnimationFrame(frame);})(t0);
+  }
+  const vals=document.querySelectorAll('.cv');
+  if(!reduce&&hasIO){
+    const mio=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){countUp(en.target);mio.unobserve(en.target);}});},{threshold:.4});
+    vals.forEach(v=>mio.observe(v));
+  }else{vals.forEach(countUp);}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>View 04 · CustomIngestion — Failure Attribution · B12</title>
+<meta name="description" content="CustomIngestion: one-click failure presets, a raw console-log parser, and custom JSON intake — bring your own trace, leave with a verdict." />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+
+<nav><div class="wrap nav-in">
+  <a class="brand" href="../index.html"><span class="mark">◈</span>Failure Attribution<small>B12 · GRIET</small></a>
+  <div class="pager-top">
+    <a href="03-benchmark.html">← <span>03</span></a>
+    <a href="05-telemetry.html"><span>Next ·</span> 05 →</a>
+  </div>
+</div></nav>
+
+<header class="stage-hero">
+  <div class="wrap">
+    <p class="eyebrow"><span class="arrow">↳</span> Platform · View 04 of 06 · Live on :5173</p>
+    <h1>Custom<em>Ingestion</em></h1>
+    <p class="lede">The playground entrance. Three tabs cover every way a trace can arrive: curated failure presets that name their expected culprit up front (built for viva demos), a raw console-transcript parser that understands <span class="inline-code" style="background:rgba(255,255,255,.08)">[Sender → Recipient]: message</span> lines, and a custom JSON intake for AutoGen, MetaGPT, ChatDev, CrewAI, or LangGraph exports.</p>
+    <div class="chips">
+      <span class="chip-m">component&nbsp;<b>CustomIngestionView.jsx</b></span>
+      <span class="chip-m">endpoints&nbsp;<b>/synthetic/presets · /parse/*</b></span>
+      <span class="chip-m">tabs&nbsp;<b>presets · raw log · JSON</b></span>
+      <span class="chip-m">demo&nbsp;<b>DROP TABLE → blamed s1</b></span>
+    </div>
+  </div>
+</header>
+
+<section class="light">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow on-light"><span class="arrow">↳</span> What it accepts</p>
+        <h2>Three doors, one verdict</h2>
+      </div>
+      <p class="lead">Every path ends the same way: a verdict banner naming the blamed agent and step, with a pointer into the DAG explorer.</p>
+    </div>
+    <div class="rv">
+      <div class="panel-svg">
+        <div class="ph"><span>the default demo log · DBArchitect drops the table</span><span class="tag">svg</span></div>
+        <svg viewBox="0 0 760 300" role="img" aria-label="Sample console log where step 1 drops the users table and step 3 crashes, with blame resolved to step 1">
+          <g font-family="JetBrains Mono,monospace" font-size="11">
+            <rect x="24" y="20" width="480" height="200" rx="8" fill="#15171c"/>
+            <text x="44" y="48" fill="#8b93a6">[ProductManager → DBArchitect]: migrate users, keep data…</text>
+            <text x="44" y="74" fill="#ff8f8f">✗ [DBArchitect → BackendDev]: DROP TABLE users CASCADE;</text>
+            <text x="44" y="100" fill="#dfe3ea">[BackendDev → QATester]: service updated, verifying…</text>
+            <text x="44" y="126" fill="#ff8f8f">✗ [QATester → Supervisor]: 0 rows! 1,500 accounts gone</text>
+            <text x="44" y="160" fill="#8b93a6">task goal: migrate database without deleting rows</text>
+            <text x="44" y="184" fill="#8b93a6">format: [Sender → Recipient]: message</text>
+            <path d="M504 120 L560 120" stroke="#6f86ff" stroke-width="2" class="anim-dash"/>
+            <rect x="560" y="70" width="176" height="100" rx="8" fill="rgba(111,134,255,.1)" stroke="#6f86ff" stroke-width="1.5"/>
+            <text x="648" y="98" text-anchor="middle" fill="#15171c">blamed agent</text>
+            <text x="648" y="120" text-anchor="middle" fill="#6f86ff" font-size="14">DBArchitect</text>
+            <text x="648" y="142" text-anchor="middle" fill="#15171c">step 1, not step 3</text>
+          </g>
+          <text x="24" y="258" fill="rgba(21,23,28,.6)" font-size="11" font-family="JetBrains Mono,monospace">presets ship with expected blame + expected step · raw logs and JSON get the same verdict banner</text>
+        </svg>
+        <div class="pf">paste → segment &amp; attribute → open the DAG explorer to inspect the graph</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="dark">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow"><span class="arrow">↳</span> The three tabs</p>
+        <h2>Pick your starting point</h2>
+      </div>
+      <p class="lead">Presets for demos, raw logs for reality, JSON for pipelines.</p>
+    </div>
+    <ol class="steps rv">
+      <li><span class="sn">a</span><div><b>Curated failure presets</b><p>One-click viva demos: each card shows its environment, turn count, and <code>expected blame + expected step</code> before you run — then <code>POST /attribute</code> proves the engine agrees.</p></div></li>
+      <li><span class="sn">b</span><div><b>Raw console parser</b><p>Paste a terminal transcript with a task goal; <code>POST /parse/raw_log</code> segments <code>[Sender → Recipient]</code> lines into steps and attributes them in one shot.</p></div></li>
+      <li><span class="sn">c</span><div><b>Custom JSON payload</b><p>Drop a <code>MultiAgentTrace</code>-shaped document (title, goal, steps) into <code>POST /parse/custom_json</code> — the same door CI pipelines use.</p></div></li>
+    </ol>
+    <div class="evidence rv">
+      <div class="ev"><span class="n"><span class="cv" data-target="3" data-dec="0">0</span></span><span class="l">Intake tabs</span><p>Presets · raw log · JSON.</p></div>
+      <div class="ev"><span class="n">A→B</span><span class="l">Log grammar</span><p>[Sender → Recipient]: message.</p></div>
+      <div class="ev"><span class="n"><span class="cv" data-target="1500" data-dec="0">0</span><span class="u">+</span></span><span class="l">Demo rows at stake</span><p>The DROP TABLE preset's body count.</p></div>
+      <div class="ev"><span class="n"><span class="cv" data-target="1" data-dec="0">0</span></span><span class="l">Click to verdict</span><p>Presets attribute in a single action.</p></div>
+    </div>
+    <div class="pager rv" style="margin-top:26px">
+      <a class="pg" href="03-benchmark.html"><span class="k">← Prev · view 03</span><span class="t">Benchmark<em>View</em></span></a>
+      <a class="pg next" href="05-telemetry.html"><span class="k">Next · view 05</span><span class="t">Telemetry <em>→</em></span></a>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap"><div class="frow">
+  <span>© 2026 Batch B12 · Dept. of CSE · GRIET · Phase-1</span>
+  <span><a href="03-benchmark.html">← 03</a> · <a href="05-telemetry.html">05 →</a> · <a href="../index.html">index</a></span>
+</div></div></footer>
+
+<script>
+(function(){
+  const reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const hasIO='IntersectionObserver' in window;
+  const rvEls=document.querySelectorAll('.rv');
+  function inView(el){const r=el.getBoundingClientRect();return r.top<window.innerHeight*.92&&r.bottom>0;}
+  if(!reduce&&hasIO){
+    const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);}});},{threshold:.12,rootMargin:'0px 0px -8% 0px'});
+    rvEls.forEach(el=>{if(inView(el))el.classList.add('in');else io.observe(el);});
+  }else{rvEls.forEach(el=>el.classList.add('in'));}
+  const bar=document.getElementById('progressBar');let ticking=false;
+  window.addEventListener('scroll',()=>{if(ticking)return;ticking=true;requestAnimationFrame(()=>{
+    const h=document.documentElement,max=h.scrollHeight-h.clientHeight;
+    bar.style.transform='scaleX('+(max>0?Math.min(1,Math.max(0,h.scrollTop/max)):0)+')';ticking=false;});},{passive:true});
+  function countUp(el){
+    const target=parseFloat(el.getAttribute('data-target')),dec=parseInt(el.getAttribute('data-dec')||'0',10);
+    if(reduce||isNaN(target)){el.textContent=target.toLocaleString('en-US');return;}
+    const dur=1300,t0=performance.now();
+    (function frame(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);
+      el.textContent=Math.round(target*e).toLocaleString('en-US');if(p<1)requestAnimationFrame(frame);})(t0);
+  }
+  const vals=document.querySelectorAll('.cv');
+  if(!reduce&&hasIO){
+    const mio=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){countUp(en.target);mio.unobserve(en.target);}});},{threshold:.4});
+    vals.forEach(v=>mio.observe(v));
+  }else{vals.forEach(countUp);}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>01 · Token budgeting &amp; segmentation — Failure Attribution · B12</title>
+<meta name="description" content="Stage 01: heterogeneous multi-agent logs become bounded ExecutionStep entities under a 4,096-token ceiling with 60% head / 30% tail retention." />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+
+<nav><div class="wrap nav-in">
+  <a class="brand" href="../index.html"><span class="mark">◈</span>Failure Attribution<small>B12 · GRIET</small></a>
+  <div class="pager-top">
+    <a href="overview.html">← <span>Overview</span></a>
+    <a href="02-stepjudge-cache.html"><span>Next ·</span> 02 →</a>
+  </div>
+</div></nav>
+
+<header class="stage-hero">
+  <div class="wrap">
+    <p class="eyebrow"><span class="arrow">↳</span> Deep dive · Stage 01 of 05 · Report §4.1 Alg. 1 · FR-02</p>
+    <h1>Token budgeting <em>&amp; segmentation</em></h1>
+    <p class="lede">Every framework logs differently — AutoGen JSON, LangGraph and CrewAI dicts, MetaGPT schemas, raw console dumps. The TraceSegmenter normalizes all of it into one domain entity, the ExecutionStep, and guarantees no step ever exceeds the judge's 4,096-token context window.</p>
+    <div class="chips">
+      <span class="chip-m">module&nbsp;<b>segmentation.py</b></span>
+      <span class="chip-m">ceiling&nbsp;<b>4,096 tokens</b></span>
+      <span class="chip-m">policy&nbsp;<b>60% head / 30% tail</b></span>
+      <span class="chip-m">inputs&nbsp;<b>JSON · JSONL · console</b></span>
+    </div>
+  </div>
+</header>
+
+<section class="light">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow on-light"><span class="arrow">↳</span> What it does</p>
+        <h2>Four dialects in, one entity out</h2>
+      </div>
+      <p class="lead">Parsing is format-aware; budgeting is format-blind — every step gets the same ceiling.</p>
+    </div>
+    <div class="grid2">
+      <div class="rv">
+        <div class="panel-svg">
+          <div class="ph"><span>ingest → normalize → bound</span><span class="tag">svg</span></div>
+          <svg viewBox="0 0 560 300" role="img" aria-label="Three log formats funnel into ExecutionStep entities under a token ceiling">
+            <g font-family="JetBrains Mono,monospace">
+              <rect x="16" y="30" width="130" height="56" rx="6" fill="none" stroke="rgba(21,23,28,.35)"/>
+              <text x="81" y="54" text-anchor="middle" fill="#15171c" font-size="11">autogen.json</text>
+              <text x="81" y="70" text-anchor="middle" fill="rgba(21,23,28,.6)" font-size="10">structured</text>
+              <rect x="16" y="100" width="130" height="56" rx="6" fill="none" stroke="rgba(21,23,28,.35)"/>
+              <text x="81" y="124" text-anchor="middle" fill="#15171c" font-size="11">langgraph · crewai</text>
+              <text x="81" y="140" text-anchor="middle" fill="rgba(21,23,28,.6)" font-size="10">dict schemas</text>
+              <rect x="16" y="170" width="130" height="56" rx="6" fill="none" stroke="rgba(21,23,28,.35)"/>
+              <text x="81" y="194" text-anchor="middle" fill="#15171c" font-size="11">console.log</text>
+              <text x="81" y="210" text-anchor="middle" fill="rgba(21,23,28,.6)" font-size="10">raw text</text>
+              <path d="M146 58 L215 128 M146 128 L215 128 M146 198 L215 128" stroke="rgba(21,23,28,.3)" stroke-width="1.5" fill="none"/>
+              <rect x="215" y="86" width="150" height="84" rx="8" fill="#15171c"/>
+              <text x="290" y="114" text-anchor="middle" fill="#f4f5f6" font-size="12">TraceSegmenter</text>
+              <text x="290" y="132" text-anchor="middle" fill="#9aa9ff" font-size="10">segment_trace()</text>
+              <text x="290" y="148" text-anchor="middle" fill="rgba(244,245,246,.6)" font-size="10">parse_custom_json()</text>
+              <path d="M365 128 L410 128" stroke="rgba(21,23,28,.3)" stroke-width="1.5"/>
+              <path d="M365 128 L410 128" stroke="#6f86ff" stroke-width="1.5" class="anim-dash" fill="none"/>
+              <rect x="410" y="86" width="134" height="84" rx="8" fill="rgba(111,134,255,.1)" stroke="#6f86ff"/>
+              <text x="477" y="110" text-anchor="middle" fill="#15171c" font-size="12">ExecutionStep</text>
+              <text x="477" y="128" text-anchor="middle" fill="rgba(21,23,28,.6)" font-size="9">agent · recipient</text>
+              <text x="477" y="142" text-anchor="middle" fill="rgba(21,23,28,.6)" font-size="9">payload · context</text>
+              <text x="477" y="156" text-anchor="middle" fill="rgba(21,23,28,.6)" font-size="9">state · ≤4096 tok</text>
+            </g>
+            <text x="16" y="262" fill="rgba(21,23,28,.6)" font-size="11" font-family="JetBrains Mono,monospace">s_i = (agent, recipient, payload, context, state) — ordered turns s_0 … s_{N-1}</text>
+          </svg>
+          <div class="pf">parse_raw_log_text() rescues unstructured console dumps into the same entity</div>
+        </div>
+      </div>
+      <div class="rv" style="--d:.1s">
+        <div class="fig">
+          <div class="fh"><span>Report figure · system boundary</span><span class="tag">dfd-0</span></div>
+          <img src="../assets/fig-dfd-level0.png" alt="Level-0 data flow diagram: multi-agent trace log into the automated attribution system, attributed verdict out to developer dashboard" />
+          <div class="fc"><b>Context level.</b> Everything on this page lives inside that middle bubble's front door: <b>Trace JSON in</b> — before any judging, linking, or traversal can begin.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="dark">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow"><span class="arrow">↳</span> How it works</p>
+        <h2>Keep the head, keep the tail</h2>
+      </div>
+      <p class="lead">A 30,000-token turn cannot be judged. The 60/30 slice keeps what matters and drops the mushy middle.</p>
+    </div>
+    <div class="panel-svg rv" data-bars>
+      <div class="ph"><span>asymmetric retention · one oversized step</span><span class="tag">60 / 10 / 30</span></div>
+      <svg viewBox="0 0 760 215" role="img" aria-label="Token retention bar: 60 percent head kept, 10 percent middle dropped, 30 percent tail kept">
+        <g font-family="JetBrains Mono,monospace">
+          <rect x="30" y="30" width="420" height="56" rx="6" fill="rgba(126,226,168,.25)" stroke="#7ee2a8" stroke-width="1.5"/>
+          <text x="240" y="54" text-anchor="middle" fill="#f4f5f6" font-size="13">HEAD · 60%</text>
+          <text x="240" y="72" text-anchor="middle" fill="rgba(244,245,246,.65)" font-size="11">kept ✓</text>
+          <rect x="450" y="30" width="70" height="56" rx="6" fill="rgba(255,143,143,.18)" stroke="#ff8f8f" stroke-width="1.5" stroke-dasharray="5 4"/>
+          <text x="485" y="54" text-anchor="middle" fill="#ff8f8f" font-size="13">10%</text>
+          <text x="485" y="72" text-anchor="middle" fill="#ff8f8f" font-size="10">dropped</text>
+          <rect x="520" y="30" width="210" height="56" rx="6" fill="rgba(111,134,255,.22)" stroke="#9aa9ff" stroke-width="1.5"/>
+          <text x="625" y="54" text-anchor="middle" fill="#f4f5f6" font-size="13">TAIL · 30%</text>
+          <text x="625" y="72" text-anchor="middle" fill="rgba(244,245,246,.65)" font-size="11">kept ✓</text>
+          <text x="240" y="112" text-anchor="middle" fill="rgba(244,245,246,.6)" font-size="11">task instructions + goal</text>
+          <text x="485" y="112" text-anchor="middle" fill="rgba(244,245,246,.45)" font-size="10">filler</text>
+          <text x="625" y="112" text-anchor="middle" fill="rgba(244,245,246,.6)" font-size="11">exception trace</text>
+        </g>
+        <text x="30" y="152" fill="rgba(244,245,246,.55)" font-size="11" font-family="JetBrains Mono,monospace">_bound_token_length() — nothing downstream ever sees more than 4,096 tokens per step</text>
+        <text x="30" y="178" fill="rgba(244,245,246,.4)" font-size="11" font-family="JetBrains Mono,monospace">60% + 30% kept · middle 10% sacrificed · head = why the run exists · tail = how it died</text>
+      </svg>
+      <div class="pf">head = why the run exists · tail = how it died · middle = filler</div>
+    </div>
+    <ol class="steps rv">
+      <li><span class="sn">a</span><div><b>Parse by format</b><p><code>parse_custom_json()</code> handles framework schemas; <code>parse_raw_log_text()</code> recovers agent turns from raw console text with a task goal attached.</p></div></li>
+      <li><span class="sn">b</span><div><b>Normalize to ExecutionStep</b><p>Agent name, recipient, action payload, input context, output state — chronological, persistent agent names assumed (report §3, Assumptions).</p></div></li>
+      <li><span class="sn">c</span><div><b>Enforce the ceiling</b><p><code>_bound_token_length()</code> slices oversized payloads to 60% head + 30% tail, so the StepJudge prompt always fits Qwen's window.</p></div></li>
+    </ol>
+    <div class="algo rv">
+      <div class="ah"><span>Algorithm 1 · report listing 4.1 (abridged)</span><span class="tag">head 60 / tail 30</span></div>
+<pre><span class="c"># TraceSegmenter(max_turn_tokens=4096)</span>
+steps = segment_trace(trace)          <span class="c"># → List[ExecutionStep]</span>
+for s in steps:
+    s.payload = _bound_token_length(s.payload)
+    <span class="c"># keep first 60% (instructions) + last 30% (exceptions)</span>
+<span class="g">guarantee: every downstream prompt ≤ 4,096 tokens</span></pre>
+    </div>
+    <div class="evidence rv" data-bars>
+      <div class="ev"><span class="n"><span class="cv" data-target="4096" data-dec="0">0</span></span><span class="l">Token ceiling / step</span><p>Hard cap enforced before any LLM call (FR-02, NFR).</p></div>
+      <div class="ev"><span class="n"><span class="cv" data-target="60" data-dec="0">0</span><span class="u">%</span></span><span class="l">Head retained</span><p>Task instructions and goal survive truncation.</p></div>
+      <div class="ev"><span class="n"><span class="cv" data-target="30" data-dec="0">0</span><span class="u">%</span></span><span class="l">Tail retained</span><p>Terminal exception traces survive truncation.</p></div>
+      <div class="ev"><span class="n">4<span class="u">+ formats</span></span><span class="l">Ingestion coverage</span><p>AutoGen · LangGraph · CrewAI · MetaGPT · raw logs.</p></div>
+    </div>
+    <div class="pager rv" style="margin-top:26px">
+      <a class="pg" href="overview.html"><span class="k">← Prev · overview</span><span class="t">Pipeline <em>overview</em></span></a>
+      <a class="pg next" href="02-stepjudge-cache.html"><span class="k">Next · stage 02</span><span class="t">StepJudge + cache <em>→</em></span></a>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap"><div class="frow">
+  <span>© 2026 Batch B12 · Dept. of CSE · GRIET · Phase-1</span>
+  <span><a href="overview.html">← overview</a> · <a href="02-stepjudge-cache.html">02 →</a> · <a href="../index.html">index</a></span>
+</div></div></footer>
+
+<script>
+(function(){
+  const reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const hasIO='IntersectionObserver' in window;
+  const rvEls=document.querySelectorAll('.rv');
+  function inView(el){const r=el.getBoundingClientRect();return r.top<window.innerHeight*.92&&r.bottom>0;}
+  if(!reduce&&hasIO){
+    const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);}});},{threshold:.12,rootMargin:'0px 0px -8% 0px'});
+    rvEls.forEach(el=>{if(inView(el))el.classList.add('in');else io.observe(el);});
+  }else{rvEls.forEach(el=>el.classList.add('in'));}
+  const bar=document.getElementById('progressBar');let ticking=false;
+  window.addEventListener('scroll',()=>{if(ticking)return;ticking=true;requestAnimationFrame(()=>{
+    const h=document.documentElement,max=h.scrollHeight-h.clientHeight;
+    bar.style.transform='scaleX('+(max>0?Math.min(1,Math.max(0,h.scrollTop/max)):0)+')';ticking=false;});},{passive:true});
+  function countUp(el){
+    const target=parseFloat(el.getAttribute('data-target')),dec=parseInt(el.getAttribute('data-dec')||'0',10);
+    if(reduce||isNaN(target)){el.textContent=target.toLocaleString('en-US',{maximumFractionDigits:dec,minimumFractionDigits:dec});return;}
+    const dur=1300,t0=performance.now();
+    (function frame(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);
+      el.textContent=(target*e).toLocaleString('en-US',{maximumFractionDigits:dec,minimumFractionDigits:dec});
+      if(p<1)requestAnimationFrame(frame);})(t0);
+  }
+  const vals=document.querySelectorAll('.cv');
+  if(!reduce&&hasIO){
+    const mio=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){countUp(en.target);mio.unobserve(en.target);}});},{threshold:.4});
+    vals.forEach(v=>mio.observe(v));
+  }else{vals.forEach(countUp);}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+/* Design tokens — shared with the landing page language (palantir-adapted):
+   paper/ink neutrals, grotesque display type, mono micro-labels, single indigo accent. */
+:root {
+  --paper: #f3f2ee;
+  --paper-2: #eae8e2;
+  --card: #ffffff;
+  --ink: #121317;
+  --ink-2: #191b21;
+  --t: #15171c;
+  --t-inv: #f4f5f6;
+  --mut-l: rgba(21, 23, 28, 0.6);
+  --mut-d: rgba(244, 245, 246, 0.62);
+  --line-l: rgba(21, 23, 28, 0.14);
+  --line-d: rgba(255, 255, 255, 0.15);
+  --acc: #6f86ff;
+  --acc-d: #9aa9ff;
+  --accent-red: #e5484d;
+  --accent-red-soft: rgba(229, 72, 77, 0.1);
+  --accent-orange: #e87b2d;
+  --accent-green: #1f9d63;
+  --font-sans: "Nimbus Sans", "Helvetica Neue", Helvetica, "Liberation Sans", Arial, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --radius: 0px;
+  --radius-soft: 6px;
+  --shadow-pop: 0 18px 40px -28px rgba(21, 23, 28, 0.45);
+  --ring: 0 0 0 3px rgba(111, 134, 255, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 17.5px;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--paper);
+  color: var(--t);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+}
+
+::selection {
+  background: var(--acc);
+  color: #fff;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+input, select, textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(21, 23, 28, 0.25);
+  border-radius: 8px;
+  border: 2px solid var(--paper);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(21, 23, 28, 0.4);
+}
+
+/* Motion */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(31, 157, 99, 0.55); }
+  60% { box-shadow: 0 0 0 7px rgba(31, 157, 99, 0); }
+}
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.tab-enter {
+  animation: fade-up 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

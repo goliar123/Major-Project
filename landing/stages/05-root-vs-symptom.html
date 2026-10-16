@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>05 · Root vs symptom — Failure Attribution · B12</title>
+<meta name="description" content="Stage 05: the clean-parent invariant isolates the originating root cause s*, the 2-D taxonomy labels every node, and the shortest causal chain explains the verdict." />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+
+<nav><div class="wrap nav-in">
+  <a class="brand" href="../index.html"><span class="mark">◈</span>Failure Attribution<small>B12 · GRIET</small></a>
+  <div class="pager-top">
+    <a href="04-backward-traversal.html">← <span>04</span></a>
+    <a href="../index.html#results"><span>Results ·</span> ↗</a>
+  </div>
+</div></nav>
+
+<header class="stage-hero">
+  <div class="wrap">
+    <p class="eyebrow"><span class="arrow">↳</span> Deep dive · Stage 05 of 05 · Report §4.1 Alg. 5 · FR-12/13/14</p>
+    <h1>Root <em>vs symptom</em></h1>
+    <p class="lede">Several anomalies usually survive the closure — a fault and everything it infected. The clean-parent invariant picks the one that generated the fault rather than inheriting it, labels every node on a two-dimensional taxonomy, and draws the minimal causal chain as the explanation.</p>
+    <div class="chips">
+      <span class="chip-m">resolver&nbsp;<b>isolate_originating_root_cause()</b></span>
+      <span class="chip-m">verdict&nbsp;<b>s* · agent · chain</b></span>
+      <span class="chip-m">taxonomy&nbsp;<b>3 roles × 25+ bugs</b></span>
+      <span class="chip-m">joint&nbsp;<b>86.96%</b></span>
+    </div>
+  </div>
+</header>
+
+<section class="light">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow on-light"><span class="arrow">↳</span> What it does</p>
+        <h2>The earliest liar wins the blame</h2>
+      </div>
+      <p class="lead">Sort the suspects topologically; the first one with clean parents is the originator — everyone after it merely inherited.</p>
+    </div>
+    <div class="rv">
+      <div class="panel-svg">
+        <div class="ph"><span>clean-parent check over C_anom = [s7, s11, s13, s14]</span><span class="tag">svg</span></div>
+        <svg viewBox="0 0 760 250" role="img" aria-label="Topological candidate check: s7 has clean parents and is isolated as root, the rest are propagated symptoms">
+          <g font-family="JetBrains Mono,monospace" font-size="12">
+            <g text-anchor="middle">
+              <rect x="40" y="60" width="150" height="120" rx="8" fill="rgba(126,226,168,.12)" stroke="#7ee2a8" stroke-width="2"/>
+              <text x="115" y="92" fill="#15171c">s7 · Planner</text>
+              <text x="115" y="112" fill="rgba(21,23,28,.6)" font-size="10">parents: s5, s6</text>
+              <text x="115" y="130" fill="#2c7a4b" font-size="11">✓ both clean</text>
+              <text x="115" y="156" fill="#15171c" font-size="12">⇒ s* ROOT</text>
+              <rect x="215" y="60" width="150" height="120" rx="8" fill="#fff" stroke="rgba(21,23,28,.3)"/>
+              <text x="290" y="92" fill="#15171c">s11 · Tool</text>
+              <text x="290" y="112" fill="rgba(21,23,28,.6)" font-size="10">parent: s7 ✗</text>
+              <text x="290" y="134" fill="rgba(21,23,28,.6)" font-size="11">inherited ⇒ symptom</text>
+              <rect x="390" y="60" width="150" height="120" rx="8" fill="#fff" stroke="rgba(21,23,28,.3)"/>
+              <text x="465" y="92" fill="#15171c">s13 · Analyst</text>
+              <text x="465" y="112" fill="rgba(21,23,28,.6)" font-size="10">parent: s11 ✗</text>
+              <text x="465" y="134" fill="rgba(21,23,28,.6)" font-size="11">inherited ⇒ symptom</text>
+              <rect x="565" y="60" width="150" height="120" rx="8" fill="rgba(255,143,143,.08)" stroke="rgba(21,23,28,.3)" stroke-dasharray="5 4"/>
+              <text x="640" y="92" fill="#15171c">s14 · Executor</text>
+              <text x="640" y="112" fill="rgba(21,23,28,.6)" font-size="10">s_m · crash site</text>
+              <text x="640" y="134" fill="rgba(21,23,28,.6)" font-size="11">symptom, not cause</text>
+            </g>
+          </g>
+          <path d="M190 200 L215 200 M365 120 L390 120 M540 120 L565 120" stroke="rgba(21,23,28,.35)" stroke-width="1.5"/>
+          <text x="40" y="222" fill="rgba(21,23,28,.6)" font-size="11" font-family="JetBrains Mono,monospace">invariant: s* ⟺ ∀p ∈ Pred(s*), p ∉ anomalies — origin, not inheritance</text>
+        </svg>
+        <div class="pf">all-at-once would frame s14 · the invariant acquits it</div>
+      </div>
+    </div>
+    <div class="grid2" style="margin-top:22px">
+      <div class="panel-svg rv">
+        <div class="ph"><span>NodeStatus · 2-D taxonomy</span><span class="tag">FR-13</span></div>
+        <svg viewBox="0 0 380 190" role="img" aria-label="Taxonomy chips: root cause, propagated symptom, normal, across 25 plus bug categories">
+          <g font-family="JetBrains Mono,monospace" font-size="11">
+            <rect x="16" y="16" width="348" height="44" rx="6" fill="rgba(126,226,168,.15)" stroke="#2c7a4b"/>
+            <text x="30" y="43" fill="#15171c">● root_cause — s7 · PlannerAgent</text>
+            <rect x="16" y="68" width="348" height="44" rx="6" fill="rgba(111,134,255,.1)" stroke="#6f86ff"/>
+            <text x="30" y="95" fill="#15171c">● propagated_symptom — s11, s13, s14</text>
+            <rect x="16" y="120" width="348" height="44" rx="6" fill="none" stroke="rgba(21,23,28,.3)"/>
+            <text x="30" y="147" fill="rgba(21,23,28,.7)">● normal — every other step</text>
+          </g>
+          <text x="16" y="182" fill="rgba(21,23,28,.6)" font-size="11" font-family="JetBrains Mono,monospace">× 25+ semantic bug categories (schema, tool-arg, premise…)</text>
+        </svg>
+        <div class="pf">role (causal) × category (semantic) — the report's Table 4.2</div>
+      </div>
+      <div class="panel-svg rv" style="--d:.1s">
+        <div class="ph"><span>shortest causal chain · explanation</span><span class="tag">FR-14</span></div>
+        <svg viewBox="0 0 380 190" role="img" aria-label="Minimal propagation chain from s7 root to s14 symptom">
+          <g font-family="JetBrains Mono,monospace" font-size="12" text-anchor="middle">
+            <circle cx="48" cy="80" r="24" fill="#15171c"/><text x="48" y="85" fill="#f4f5f6">s7</text>
+            <circle cx="148" cy="80" r="24" fill="#fff" stroke="rgba(21,23,28,.4)" stroke-width="1.5"/><text x="148" y="85" fill="#15171c">s11</text>
+            <circle cx="248" cy="80" r="24" fill="#fff" stroke="rgba(21,23,28,.4)" stroke-width="1.5"/><text x="248" y="85" fill="#15171c">s13</text>
+            <circle cx="338" cy="80" r="24" fill="rgba(111,134,255,.15)" stroke="#6f86ff" stroke-width="2"/><text x="338" y="85" fill="#15171c">s14</text>
+          </g>
+          <path d="M72 80 L124 80 M172 80 L224 80 M272 80 L314 80" stroke="#6f86ff" stroke-width="2" class="anim-dash"/>
+          <text x="190" y="130" text-anchor="middle" fill="rgba(21,23,28,.65)" font-size="11" font-family="JetBrains Mono,monospace">nx.shortest_path(s* → s_m)</text>
+          <text x="190" y="150" text-anchor="middle" fill="rgba(21,23,28,.65)" font-size="11" font-family="JetBrains Mono,monospace">multi-tier narrative justification</text>
+        </svg>
+        <div class="pf">the verdict ships with its own proof — every hop inspectable</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="dark">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow"><span class="arrow">↳</span> How it works</p>
+        <h2>Sort, check parents, label, explain</h2>
+      </div>
+      <p class="lead">Deterministic to the last step: same trace, same cache state, same verdict — every run.</p>
+    </div>
+    <div class="grid2">
+      <div class="rv">
+        <div class="fig">
+          <div class="fh"><span>Report figure · resolver → verdict</span><span class="tag">architecture</span></div>
+          <img src="../assets/fig-architecture.png" alt="Report architecture diagram highlighting the root-cause resolver panel producing agent, step, and justification output" />
+          <div class="fc"><b>Same figure, stage-05 lens:</b> the <b>Root-Cause Resolver</b> panel isolates the earliest faulty step, and the dashboard reports <b>responsible agent · decisive step · justification in context</b> — the Who, the When, and the why.</div>
+        </div>
+      </div>
+      <div class="algo rv" style="margin-top:0">
+        <div class="ah"><span>Algorithm 5 · report listing 4.5 (abridged)</span><span class="tag">isolate s*</span></div>
+<pre>ordered = topo_sort(C_anom)  <span class="c"># earliest first</span>
+for cand in ordered:
+    preds = [p for p in dag.pred(cand) <span class="g">if p &lt; cand</span>]
+    if all(p not in anomalies for p in preds):
+        <span class="g">return cand  # s* — clean parents ⇒ origin</span>
+label(members): root_cause | propagated_symptom | normal
+chain = nx.shortest_path(dag, s*, s_m)</pre>
+      </div>
+    </div>
+    <div class="rv" style="margin-top:26px">
+      <table class="tbl">
+        <thead><tr><th>Verdict field</th><th>Meaning</th><th class="num">Run 042</th></tr></thead>
+        <tbody>
+          <tr><td><code>root_cause_step</code></td><td>Index s* of the originating fault</td><td class="num hl">s7</td></tr>
+          <tr><td><code>responsible_agent</code></td><td>Persona that introduced it (the Who)</td><td class="num hl">PlannerAgent</td></tr>
+          <tr><td><code>causal_path</code></td><td>Minimal propagation chain (the proof)</td><td class="num">s7 → s11 → s13 → s14</td></tr>
+          <tr><td><code>NodeStatus[]</code></td><td>Role × bug-category per node</td><td class="num">1 root · 3 symptoms</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="evidence rv">
+      <div class="ev"><span class="n"><span class="cv" data-target="86.96" data-dec="2">0.00</span><span class="u">%</span></span><span class="l">Strict joint accuracy</span><p>Who and When together, 184 traces.</p></div>
+      <div class="ev"><span class="n">+<span class="cv" data-target="72.8" data-dec="1">0.0</span><span class="u">pp</span></span><span class="l">Step gain over AoA</span><p>14.2% → 86.96% step isolation.</p></div>
+      <div class="ev"><span class="n">4.<span class="cv" data-target="3" data-dec="0">0</span><span class="u">×</span></span><span class="l">Over published SOTA</span><p>Joint accuracy vs &lt;30% baselines.</p></div>
+      <div class="ev"><span class="n"><span class="cv" data-target="27" data-dec="0">0</span><span class="u">/27</span></span><span class="l">Tests green</span><p>Traversal + taxonomy under regression.</p></div>
+    </div>
+    <div class="pager rv" style="margin-top:26px">
+      <a class="pg" href="04-backward-traversal.html"><span class="k">← Prev · stage 04</span><span class="t">Backward <em>traversal</em></span></a>
+      <a class="pg next" href="../index.html#results"><span class="k">Finish · landing</span><span class="t">Results table <em>↗</em></span></a>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap"><div class="frow">
+  <span>© 2026 Batch B12 · Dept. of CSE · GRIET · Phase-1</span>
+  <span><a href="04-backward-traversal.html">← 04</a> · <a href="overview.html">overview</a> · <a href="../index.html">index</a></span>
+</div></div></footer>
+
+<script>
+(function(){
+  const reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const hasIO='IntersectionObserver' in window;
+  const rvEls=document.querySelectorAll('.rv');
+  function inView(el){const r=el.getBoundingClientRect();return r.top<window.innerHeight*.92&&r.bottom>0;}
+  if(!reduce&&hasIO){
+    const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);}});},{threshold:.12,rootMargin:'0px 0px -8% 0px'});
+    rvEls.forEach(el=>{if(inView(el))el.classList.add('in');else io.observe(el);});
+  }else{rvEls.forEach(el=>el.classList.add('in'));}
+  const bar=document.getElementById('progressBar');let ticking=false;
+  window.addEventListener('scroll',()=>{if(ticking)return;ticking=true;requestAnimationFrame(()=>{
+    const h=document.documentElement,max=h.scrollHeight-h.clientHeight;
+    bar.style.transform='scaleX('+(max>0?Math.min(1,Math.max(0,h.scrollTop/max)):0)+')';ticking=false;});},{passive:true});
+  function countUp(el){
+    const target=parseFloat(el.getAttribute('data-target')),dec=parseInt(el.getAttribute('data-dec')||'0',10);
+    if(reduce||isNaN(target)){el.textContent=target.toFixed(dec);return;}
+    const dur=1300,t0=performance.now();
+    (function frame(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);
+      el.textContent=(target*e).toFixed(dec);if(p<1)requestAnimationFrame(frame);})(t0);
+  }
+  const vals=document.querySelectorAll('.cv');
+  if(!reduce&&hasIO){
+    const mio=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){countUp(en.target);mio.unobserve(en.target);}});},{threshold:.4});
+    vals.forEach(v=>mio.observe(v));
+  }else{vals.forEach(countUp);}
+})();
+</script>
+</body>
+</html>

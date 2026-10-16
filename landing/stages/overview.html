@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pipeline overview — Failure Attribution · B12 GRIET</title>
+<meta name="description" content="End-to-end deep dive: how the 5-stage neuro-symbolic engine turns a multi-agent crash log into a named root cause. 86.96% joint accuracy on 184 Who&When traces." />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+
+<nav><div class="wrap nav-in">
+  <a class="brand" href="../index.html"><span class="mark">◈</span>Failure Attribution<small>B12 · GRIET</small></a>
+  <div class="pager-top">
+    <a href="../index.html#pipeline">↑ <span>Landing</span></a>
+    <a href="01-token-budgeting.html"><span>Next ·</span> 01 →</a>
+  </div>
+</div></nav>
+
+<header class="stage-hero">
+  <div class="wrap">
+    <p class="eyebrow"><span class="arrow">↳</span> Deep dive · 00 — End to end · Report Ch. 3–4</p>
+    <h1>From crash log to <em>named culprit</em></h1>
+    <p class="lede">A multi-agent run collapses at the terminal agent — but the defect was injected silently, turns earlier. This engine refuses to blame the crash site: it budgets tokens, judges every step, links the causal graph, walks it backwards, and isolates the originating root cause. Five stages, each with its own page.</p>
+    <div class="chips">
+      <span class="chip-m"><b>5</b>&nbsp;stages</span>
+      <span class="chip-m"><b>184</b>&nbsp;Who&amp;When traces</span>
+      <span class="chip-m"><b>86.96%</b>&nbsp;strict joint accuracy</span>
+      <span class="chip-m"><b>27/27</b>&nbsp;tests green</span>
+    </div>
+  </div>
+</header>
+
+<section class="light">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow on-light"><span class="arrow">↳</span> The problem</p>
+        <h2>Symptom misattribution</h2>
+      </div>
+      <p class="lead">Monolithic LLM judges read the whole trace at once and blame wherever the crash surfaced — step-level accuracy under 15%.</p>
+    </div>
+    <div class="grid2">
+      <div class="prose rv">
+        <p>When an agent injects an erroneous premise, invalid tool parameter, or unfulfilled schema constraint, the defect <b>propagates silently</b>: downstream agents consume the corrupted context as ground truth until an end-of-chain agent crashes.</p>
+        <p>The report's canonical example is a financial-audit orchestration: the <b>Writer agent at step 2</b> mis-formats a data table, the error rides through ratio computation and risk analysis, and the run collapses far downstream. An All-at-Once judge blames the terminal agent — the classic <b>recency bias</b> failure (53.5% who / 14.2% when).</p>
+        <p>The fix is architectural: <b>decouple local semantic judgement</b> (what did this step do?) from <b>global causal reasoning</b> (how did the fault travel?). Neural networks do the former — <b>Qwen2.5:7b</b> over one step at a time; symbolic graph algorithms do the latter — <b>NetworkX</b> over the dependency DAG.</p>
+      </div>
+      <div class="rv" style="--d:.1s">
+        <div class="fig">
+          <div class="fh"><span>Report figure · system architecture</span><span class="tag">fig 3.1</span></div>
+          <img src="../assets/fig-architecture.png" alt="Report architecture diagram: failed trace log into five core stages (segmentation, cached step-wise judge, dependency linker, backward traversal, root-cause resolver) with backend queue and Streamlit dashboard output" />
+          <div class="fc"><b>Core processing &amp; evaluation engine.</b> Raw trace → five stages → responsible agent + decisive step + justification. Note: the diagram names MongoDB / Celery / Redis as the backing store and queue — the shipped Phase-1 implementation uses <b>SQLite + in-memory cache</b> and synchronous NetworkX traversal instead.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="dark">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow"><span class="arrow">↳</span> The pipeline</p>
+        <h2>Five stages, five pages</h2>
+      </div>
+      <p class="lead">Packets flow left to right; blame flows right to left. Open any stage for the full working.</p>
+    </div>
+    <div class="panel-svg rv">
+      <div class="ph"><span>end-to-end data flow</span><span class="tag">animated</span></div>
+      <svg viewBox="0 0 760 190" role="img" aria-label="Five pipeline stages with forward data packet and backward blame arrow">
+        <path d="M40 95 L720 95" stroke="rgba(255,255,255,.22)" stroke-width="2"/>
+        <path d="M40 95 L720 95" fill="none" stroke="#9aa9ff" stroke-width="2" class="anim-dash"/>
+        <g font-family="JetBrains Mono,monospace" text-anchor="middle">
+          <g><rect x="48" y="55" width="104" height="80" rx="8" fill="#1c2029" stroke="rgba(255,255,255,.3)"/><text x="100" y="90" fill="#f4f5f6" font-size="22">◧</text><text x="100" y="112" fill="rgba(244,245,246,.65)" font-size="10">1 BUDGET</text></g>
+          <g><rect x="182" y="55" width="104" height="80" rx="8" fill="#1c2029" stroke="rgba(255,255,255,.3)"/><text x="234" y="90" fill="#f4f5f6" font-size="22">◉</text><text x="234" y="112" fill="rgba(244,245,246,.65)" font-size="10">2 JUDGE</text></g>
+          <g><rect x="316" y="55" width="104" height="80" rx="8" fill="#1c2029" stroke="rgba(255,255,255,.3)"/><text x="368" y="90" fill="#f4f5f6" font-size="22">⬡</text><text x="368" y="112" fill="rgba(244,245,246,.65)" font-size="10">3 DAG</text></g>
+          <g><rect x="450" y="55" width="104" height="80" rx="8" fill="#1c2029" stroke="rgba(255,255,255,.3)"/><text x="502" y="90" fill="#f4f5f6" font-size="22">⟲</text><text x="502" y="112" fill="rgba(244,245,246,.65)" font-size="10">4 WALK BACK</text></g>
+          <g><rect x="584" y="55" width="128" height="80" rx="8" fill="rgba(111,134,255,.15)" stroke="#9aa9ff"/><text x="648" y="90" fill="#9aa9ff" font-size="22">◎</text><text x="648" y="112" fill="#9aa9ff" font-size="10">5 ROOT vs SYMPTOM</text></g>
+        </g>
+        <text x="40" y="160" fill="rgba(244,245,246,.5)" font-size="11" font-family="JetBrains Mono,monospace">trace.json ───▶ report</text>
+        <text x="720" y="160" text-anchor="end" fill="#9aa9ff" font-size="11" font-family="JetBrains Mono,monospace">◀─── blame walks back</text>
+      </svg>
+      <div class="pf">forward: data gets smaller and more certain · backward: suspicion travels from symptom to origin</div>
+    </div>
+    <ol class="steps rv">
+      <li><span class="sn">01 →</span><div><b><a href="01-token-budgeting.html" style="color:inherit">Token budgeting &amp; segmentation</a></b><p>Heterogeneous logs → normalized <code>ExecutionStep</code> entities under a strict 4,096-token ceiling (60% head / 30% tail).</p></div></li>
+      <li><span class="sn">02 →</span><div><b><a href="02-stepjudge-cache.html" style="color:inherit">StepJudge + deterministic cache</a></b><p>One verdict per step from local Qwen2.5:7b, keyed by <code>SHA256(model‖prompt)</code> — hits return in &lt;2 ms.</p></div></li>
+      <li><span class="sn">03 →</span><div><b><a href="03-dependency-dag.html" style="color:inherit">Dependency DAG</a></b><p>NetworkX graph: sequential flow (0.85) + identifier-linked shared state (0.95) + message replies.</p></div></li>
+      <li><span class="sn">04 →</span><div><b><a href="04-backward-traversal.html" style="color:inherit">Backward traversal</a></b><p>Transitive ancestor closure of the symptom in O(V+E); peripheral noise pruned away.</p></div></li>
+      <li><span class="sn">05 →</span><div><b><a href="05-root-vs-symptom.html" style="color:inherit">Root vs symptom</a></b><p>Clean-parent invariant isolates s*; 2-D taxonomy + shortest causal chain explain the verdict.</p></div></li>
+    </ol>
+  </div>
+</section>
+
+<section class="light">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow on-light"><span class="arrow">↳</span> Blueprints</p>
+        <h2>Drawn before it was built</h2>
+      </div>
+      <p class="lead">Decomposition and domain model from the Phase-1 report (Chapter 3).</p>
+    </div>
+    <div class="grid2">
+      <div class="fig rv">
+        <div class="fh"><span>Report figure · level-1 decomposition</span><span class="tag">dfd-1</span></div>
+        <img src="../assets/fig-dfd-level1.png" alt="Level-1 data flow diagram: trace segmentation, step-wise evaluator with cache store, dependency linker, backwards traversal engine, dashboard" />
+        <div class="fc"><b>Processes 1.0 → 4.0</b> map one-to-one onto stages 01–04, with the cache as data store D1. (The diagram labels it MongoDB; the build uses SQLite.)</div>
+      </div>
+      <div class="fig rv" style="--d:.1s">
+        <div class="fh"><span>Report figure · domain model</span><span class="tag">class</span></div>
+        <img src="../assets/fig-class-diagram.png" alt="Class diagram: MultiAgentTrace, ExecutionStep, StepEvaluation, DependencyEdge, AttributionVerdict, AttributionEngine, TraceSegmenter, StepJudge, DependencyLinker, BackwardTraversalResolver, AttributionCache" />
+        <div class="fc"><b>Entities up top, services below.</b> <code>AttributionEngine</code> orchestrates; <code>AttributionCache.sha256()</code> + <code>get()/push()</code> back every judgement.</div>
+      </div>
+    </div>
+    <div class="rv" style="margin-top:22px">
+      <table class="tbl">
+        <thead><tr><th>Who&amp;When · 184 traces</th><th class="num">Who</th><th class="num">When</th></tr></thead>
+        <tbody>
+          <tr><td>This system (neuro-symbolic)</td><td class="num hl">86.96%</td><td class="num hl">86.96%</td></tr>
+          <tr><td>All-at-Once LLM baseline</td><td class="num">53.5%</td><td class="num">14.2%</td></tr>
+          <tr><td>Step-by-Step baseline</td><td class="num">61.4%</td><td class="num">34.8%</td></tr>
+          <tr><td>Binary-search baseline</td><td class="num">67.4%</td><td class="num">40.2%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pager rv" style="margin-top:26px">
+      <a class="pg" href="../index.html#pipeline"><span class="k">← Back</span><span class="t">Landing · <em>pipeline</em></span></a>
+      <a class="pg next" href="01-token-budgeting.html"><span class="k">Next · stage 01</span><span class="t">Token budgeting <em>→</em></span></a>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap"><div class="frow">
+  <span>© 2026 Batch B12 · Dept. of CSE · GRIET · Phase-1</span>
+  <span>Isolated landing · <a href="../index.html">index</a> · <a href="01-token-budgeting.html">01 →</a></span>
+</div></div></footer>
+
+<script>
+(function(){
+  const reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const hasIO='IntersectionObserver' in window;
+  const rvEls=document.querySelectorAll('.rv');
+  function inView(el){const r=el.getBoundingClientRect();return r.top<window.innerHeight*.92&&r.bottom>0;}
+  if(!reduce&&hasIO){
+    const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);}});},{threshold:.12,rootMargin:'0px 0px -8% 0px'});
+    rvEls.forEach(el=>{if(inView(el))el.classList.add('in');else io.observe(el);});
+  }else{rvEls.forEach(el=>el.classList.add('in'));}
+  const bar=document.getElementById('progressBar');let ticking=false;
+  window.addEventListener('scroll',()=>{if(ticking)return;ticking=true;requestAnimationFrame(()=>{
+    const h=document.documentElement,max=h.scrollHeight-h.clientHeight;
+    bar.style.transform='scaleX('+(max>0?Math.min(1,Math.max(0,h.scrollTop/max)):0)+')';ticking=false;});},{passive:true});
+})();
+</script>
+</body>
+</html>

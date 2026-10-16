@@ -1,0 +1,959 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Automated Failure Attribution for LLM Multi-Agent Systems — B12 GRIET</title>
+<meta name="description" content="Neuro-symbolic failure attribution for LLM multi-agent traces. 184 Who&When traces, 86.96% accuracy, 78.2% token reduction. B.Tech Major Project Phase-1, Batch B12, GRIET." />
+<style>
+/* ============================================================
+   Design language adapted from palantir.com:
+   - near-monochrome ink / paper palette, one restrained accent
+   - editorial type: low-weight display, tight negative tracking
+   - uppercase micro-labels, hairline rules, index lists
+   - full-bleed hero with oversized clipped wordmark
+   All offline: Nimbus Sans (grotesque) + JetBrains Mono only.
+   Visual layer: inline SVG only — no external images, no deps.
+   ============================================================ */
+:root{
+  --ink:#121317; --ink-2:#191b21; --ink-3:#23262e; --ink-4:#2c3038;
+  --paper:#f3f2ee; --paper-2:#eae8e2; --white:#fff;
+  --t-inv:#f4f5f6; --t:#15171c;
+  --mut-d:rgba(244,245,246,.62); --mut-l:rgba(21,23,28,.60);
+  --line-d:rgba(255,255,255,.15); --line-l:rgba(21,23,28,.14);
+  --acc:#6f86ff; --acc-d:#9aa9ff;
+  --bad:#ff8f8f; --ok:#7ee2a8;
+  --max:1240px; --gut:clamp(18px,4.5vw,44px);
+  --sans:"Nimbus Sans","Helvetica Neue",Helvetica,"Liberation Sans",Arial,system-ui,sans-serif;
+  --mono:"JetBrains Mono","Fira Code",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;font-family:var(--sans);color:var(--t);background:var(--paper);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  font-size:16px;line-height:1.55;
+}
+a{color:inherit;text-decoration:none}
+img,svg{max-width:100%}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 var(--gut)}
+.mono{font-family:var(--mono)}
+::selection{background:var(--acc);color:#fff}
+
+/* scroll progress */
+.progress{position:fixed;top:0;left:0;height:2px;width:100%;z-index:60;
+  background:transparent;pointer-events:none}
+.progress i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--acc),var(--acc-d));
+  transform-origin:0 50%;transform:scaleX(0)}
+
+/* --- micro label --- */
+.eyebrow{
+  font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--mut-d);margin:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap
+}
+.eyebrow.on-light{color:var(--mut-l)}
+.eyebrow .arrow{color:var(--acc-d)}
+.on-light .eyebrow .arrow{color:var(--acc)}
+.live{width:7px;height:7px;border-radius:50%;background:var(--ok);position:relative;flex:none}
+.live::after{content:"";position:absolute;inset:-4px;border-radius:50%;
+  border:1px solid var(--ok);animation:ping 2s ease-out infinite}
+@keyframes ping{0%{transform:scale(.5);opacity:1}100%{transform:scale(1.3);opacity:0}}
+
+/* ============ slim announcement strip (palantir-style) ============ */
+.strip{
+  background:var(--ink-3);color:#e9eaec;font-size:13px;
+  display:flex;align-items:center;justify-content:center;position:relative;
+  padding:9px 46px;text-align:center;letter-spacing:.01em
+}
+.strip b{font-weight:600}
+.strip a{text-decoration:underline;text-underline-offset:2px;margin-left:8px;white-space:nowrap}
+.strip-x{
+  position:absolute;right:14px;top:0;bottom:0;background:none;border:0;cursor:pointer;
+  color:#cfd2d6;font-size:16px;line-height:1;font-family:var(--mono)
+}
+.strip-x:hover{color:#fff}
+
+/* ============ nav ============ */
+nav{
+  position:sticky;top:0;z-index:40;background:rgba(18,19,23,.86);
+  backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line-d)
+}
+.nav-in{display:flex;align-items:center;justify-content:space-between;height:68px;color:var(--t-inv)}
+.brand{display:flex;align-items:center;gap:11px;font-weight:600;letter-spacing:-.01em;font-size:17px}
+.mark{
+  width:28px;height:28px;border-radius:6px;background:var(--t-inv);color:var(--ink);
+  display:grid;place-items:center;font-size:15px;line-height:1;transition:transform .35s cubic-bezier(.2,.7,.2,1)
+}
+.brand:hover .mark{transform:rotate(90deg)}
+.brand small{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--mut-d);text-transform:uppercase;margin-left:2px}
+.nav-links{display:flex;gap:30px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut-d)}
+.nav-links a{position:relative;padding:6px 0;transition:color .2s}
+.nav-links a::after{content:"";position:absolute;left:0;right:100%;bottom:0;height:1px;background:var(--acc-d);transition:right .25s ease}
+.nav-links a:hover{color:var(--t-inv)}
+.nav-links a:hover::after{right:0}
+.nav-cta{display:flex;align-items:center;gap:12px}
+@media(max-width:900px){.nav-links{display:none}}
+
+/* ============ buttons ============ */
+.btn{
+  display:inline-flex;align-items:center;gap:9px;font-weight:500;font-size:14px;letter-spacing:.01em;
+  padding:12px 20px;border:1px solid var(--line-d);background:transparent;color:var(--t-inv);
+  cursor:pointer;transition:background .2s,color .2s,border-color .2s,transform .2s,box-shadow .2s
+}
+.btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px -12px rgba(111,134,255,.5)}
+.btn .rs{font-family:var(--mono);font-size:12px;opacity:.7;transition:transform .2s}
+.btn:hover .rs{transform:translate(1px,-1px)}
+.btn.solid{background:var(--t-inv);color:var(--ink);border-color:var(--t-inv)}
+.btn.solid:hover{background:#fff}
+.btn.inv{border-color:var(--line-l);color:var(--t)}
+.btn.inv.solid{background:var(--ink);color:var(--t-inv);border-color:var(--ink)}
+.btn.link{border:0;padding-left:0;padding-right:0;color:var(--acc-d)}
+.btn.on-light.link{color:var(--acc)}
+.btn.link:hover{transform:none;box-shadow:none;text-decoration:underline;text-underline-offset:3px}
+
+/* ============ hero ============ */
+.hero{
+  position:relative;overflow:hidden;background:var(--ink);color:var(--t-inv);
+  border-bottom:1px solid var(--line-d)
+}
+.hero::before{ /* fine grid, slow drift */
+  content:"";position:absolute;inset:-64px 0 0 0;opacity:.5;pointer-events:none;
+  background-image:linear-gradient(var(--line-d) 1px,transparent 1px),linear-gradient(90deg,var(--line-d) 1px,transparent 1px);
+  background-size:64px 64px;
+  mask-image:radial-gradient(120% 90% at 12% 0%,#000 0%,transparent 72%);
+  -webkit-mask-image:radial-gradient(120% 90% at 12% 0%,#000 0%,transparent 72%);
+  animation:gridPan 26s linear infinite
+}
+@keyframes gridPan{to{background-position:64px 64px}}
+.hero::after{ /* faint accent aura */
+  content:"";position:absolute;width:560px;height:560px;right:-160px;top:-180px;pointer-events:none;
+  background:radial-gradient(closest-side,rgba(111,134,255,.16),transparent 70%);
+  animation:aura 9s ease-in-out infinite alternate
+}
+@keyframes aura{from{transform:translate(0,0) scale(1)}to{transform:translate(-40px,30px) scale(1.08)}}
+.hero .wrap{position:relative;z-index:2;padding-top:clamp(52px,7vw,96px);padding-bottom:clamp(120px,15vw,190px)}
+.hero h1{
+  font-weight:600;letter-spacing:-.035em;line-height:.98;margin:26px 0 22px;
+  font-size:clamp(38px,6.6vw,80px);max-width:16ch
+}
+.hero h1 em{font-style:normal;color:var(--acc-d)}
+.hero .sub{color:var(--mut-d);font-size:clamp(15px,1.5vw,18.5px);line-height:1.62;max-width:64ch;margin:0}
+.cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
+/* entrance */
+@keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+.hero .eyebrow{animation:rise .7s cubic-bezier(.2,.7,.2,1) backwards}
+.hero h1{animation:rise .8s .08s cubic-bezier(.2,.7,.2,1) backwards}
+.hero .sub{animation:rise .8s .16s cubic-bezier(.2,.7,.2,1) backwards}
+.hero .cta{animation:rise .8s .24s cubic-bezier(.2,.7,.2,1) backwards}
+.hero .metarow{animation:rise .8s .32s cubic-bezier(.2,.7,.2,1) backwards}
+.hero .snap{animation:rise .9s .4s cubic-bezier(.2,.7,.2,1) backwards}
+.metarow{
+  display:flex;margin-top:44px;border-top:1px solid var(--line-d);border-bottom:1px solid var(--line-d);
+  flex-wrap:wrap
+}
+.metarow .m{padding:16px 26px 16px 0;margin-right:26px;border-right:1px solid var(--line-d);min-width:130px}
+.metarow .m:last-child{border-right:0;margin-right:0}
+.metarow .k{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--mut-d);margin-bottom:5px}
+.metarow .v{font-size:14px;color:var(--t-inv)}
+@media(max-width:640px){.metarow .m{flex:1 1 44%;border-right:0;margin-right:0;padding-right:0;border-bottom:1px solid var(--line-d)}}
+/* oversized clipped wordmark */
+.hero-mark{
+  position:absolute;left:0;right:0;bottom:-2.6vw;z-index:1;pointer-events:none;user-select:none;
+  font-weight:600;letter-spacing:-.04em;white-space:nowrap;line-height:.8;
+  font-size:clamp(70px,20.5vw,300px);padding-left:var(--gut);
+  color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.11);will-change:transform
+}
+@supports not (-webkit-text-stroke:1px red){.hero-mark{color:rgba(255,255,255,.06)}}
+
+/* hero forensic snapshot */
+.snap{margin-top:26px;border:1px solid var(--line-d);background:rgba(25,27,33,.72);
+  backdrop-filter:blur(6px);animation:floaty 7s ease-in-out infinite}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.snap-hd{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line-d);
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--mut-d)}
+.dots{display:flex;gap:6px}
+.dots i{width:9px;height:9px;border-radius:50%;background:#3a3f4b;display:block}
+.dots i:first-child{background:#5b6474}
+.snap-hd .ok-tag{margin-left:auto;color:var(--ok);border:1px solid rgba(126,226,168,.35);
+  padding:3px 9px;border-radius:999px;letter-spacing:.1em}
+.snap-bd{display:grid;grid-template-columns:1.15fr 1fr .85fr;gap:0}
+.snap-bd>div{padding:16px 18px}
+.snap-bd>div+div{border-left:1px solid var(--line-d)}
+.snap-cap{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut-d);margin:0 0 10px}
+.snap-log{list-style:none;margin:0;padding:0;font-family:var(--mono);font-size:12px;line-height:2}
+.snap-log li{opacity:0;transform:translateX(-6px);animation:login .5s cubic-bezier(.2,.7,.2,1) forwards;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.snap-log li:nth-child(1){animation-delay:.9s}.snap-log li:nth-child(2){animation-delay:1.15s}
+.snap-log li:nth-child(3){animation-delay:1.4s}.snap-log li:nth-child(4){animation-delay:1.65s}
+@keyframes login{to{opacity:1;transform:none}}
+.chip{display:inline-block;min-width:44px;text-align:center;font-size:10px;padding:1px 6px;border-radius:4px;margin-right:8px;letter-spacing:.08em}
+.chip.ok{color:var(--ok);border:1px solid rgba(126,226,168,.4)}
+.chip.fail{color:var(--bad);border:1px solid rgba(255,143,143,.45)}
+.chip.dim{color:var(--mut-d);border:1px solid var(--line-d)}
+.verdict-big{font-size:22px;font-weight:600;letter-spacing:-.02em;margin:2px 0 8px}
+.verdict-big b{color:var(--acc-d)}
+.conf{height:6px;background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden;margin-top:10px}
+.conf i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--acc),var(--acc-d));transition:width 1.4s cubic-bezier(.2,.7,.2,1) .5s}
+.snap.in .conf i{width:86.96%}
+.caret::after{content:"▊";color:var(--acc-d);animation:blink 1.1s steps(1) infinite;margin-left:2px}
+@keyframes blink{50%{opacity:0}}
+@media(max-width:900px){.snap-bd{grid-template-columns:1fr}.snap-bd>div+div{border-left:0;border-top:1px solid var(--line-d)}}
+
+/* ticker */
+.ticker{background:var(--ink);color:var(--mut-d);border-bottom:1px solid var(--line-d);
+  overflow:hidden;font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap}
+.ticker-track{display:inline-flex;gap:0;width:max-content;animation:tick 30s linear infinite;padding:11px 0}
+.ticker:hover .ticker-track{animation-play-state:paused}
+.ticker-track span{padding:0 26px;border-right:1px solid var(--line-d)}
+.ticker-track span b{color:var(--acc-d);font-weight:400}
+@keyframes tick{to{transform:translateX(-50%)}}
+
+/* ============ generic section ============ */
+section{padding:clamp(64px,8vw,116px) 0}
+.sec-head{display:flex;justify-content:space-between;align-items:baseline;gap:20px;flex-wrap:wrap;margin-bottom:34px}
+h2{
+  font-weight:600;letter-spacing:-.035em;line-height:1.02;margin:14px 0 12px;
+  font-size:clamp(28px,4vw,52px);max-width:22ch
+}
+.lead{color:var(--mut-l);font-size:clamp(15px,1.4vw,17.5px);line-height:1.6;max-width:62ch;margin:0}
+.dark{background:var(--ink);color:var(--t-inv)}
+.dark .lead{color:var(--mut-d)}
+.light{background:var(--paper)}
+.rule{border:0;border-top:1px solid var(--line-l);margin:0}
+.dark .rule{border-top-color:var(--line-d)}
+
+/* ============ metrics ============ */
+.metrics{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line-l)}
+.metric{padding:28px 24px 30px;border-right:1px solid var(--line-l);border-bottom:1px solid var(--line-l);
+  transition:background .25s}
+.metric:hover{background:rgba(111,134,255,.05)}
+.metric:last-child{border-right:0}
+.metric .n{font-size:clamp(26px,3vw,40px);font-weight:600;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.metric .n .u{color:var(--acc);font-size:.62em;margin-left:2px}
+.metric .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut-l);margin-top:14px;display:block}
+.metric .d{color:var(--mut-l);font-size:13.5px;line-height:1.55;margin-top:8px}
+.metric .spark{margin-top:14px;display:block}
+.metric .spark i{display:block;height:3px;border-radius:99px;background:rgba(21,23,28,.1);overflow:hidden;position:relative}
+.metric .spark i::after{content:"";position:absolute;inset:0;width:0;background:var(--acc);border-radius:99px;transition:width 1.3s cubic-bezier(.2,.7,.2,1) .3s}
+.metrics.in .spark i::after{width:var(--w,60%)}
+@media(max-width:980px){.metrics{grid-template-columns:repeat(2,1fr)}.metric:nth-child(2n){border-right:0}}
+@media(max-width:560px){.metrics{grid-template-columns:1fr}.metric{border-right:0}}
+
+/* ============ pipeline flow strip ============ */
+.flow{display:flex;align-items:center;gap:0;flex-wrap:wrap;border:1px solid var(--line-d);
+  font-family:var(--mono);font-size:12px;margin:0 0 26px;width:fit-content;max-width:100%}
+.flow span{padding:10px 14px;border-right:1px solid var(--line-d);color:var(--mut-d);white-space:nowrap;transition:background .3s,color .3s}
+.flow a.st{padding:10px 14px;border-right:1px solid var(--line-d);color:var(--mut-d);white-space:nowrap;transition:background .3s,color .3s}
+.flow a.st:hover{color:#fff;background:rgba(111,134,255,.12)}
+.flow span:last-child{border-right:0;color:var(--t-inv)}
+.flow span.sep{color:var(--acc-d);padding:10px 8px}
+.flow span.hot{color:var(--t-inv)}
+.flow .st.on{background:rgba(111,134,255,.16);color:#fff}
+
+/* pipeline DAG visual */
+.pipe-visual{border:1px solid var(--line-d);background:rgba(255,255,255,.015);margin-bottom:34px}
+.pipe-visual .pv-hd{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:12px 16px;border-bottom:1px solid var(--line-d);font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--mut-d)}
+.pipe-visual .pv-hd .tag{color:var(--acc-d)}
+.pipe-visual svg{display:block;width:100%;height:auto}
+.pv-ft{display:flex;gap:18px;flex-wrap:wrap;padding:12px 16px;border-top:1px solid var(--line-d);
+  font-family:var(--mono);font-size:11px;color:var(--mut-d);letter-spacing:.04em}
+.pv-ft i{display:inline-block;width:22px;height:2px;vertical-align:middle;margin-right:7px}
+.lg-dep i{background:rgba(255,255,255,.35)}
+.lg-back i{background:var(--acc-d)}
+.lg-root b{color:var(--acc-d);font-weight:400}.lg-crash b{color:var(--bad);font-weight:400}
+/* svg animation helpers */
+.anim-dash{stroke-dasharray:7 6;animation:dashmove 1.1s linear infinite}
+@keyframes dashmove{to{stroke-dashoffset:-26}}
+.node{transition:filter .25s,opacity .25s}
+g.node.hot circle.face{stroke:var(--acc-d);stroke-width:2}
+.pulse-ring{transform-origin:center;transform-box:fill-box;animation:ring 2.2s ease-out infinite}
+@keyframes ring{0%{transform:scale(.55);opacity:.9}100%{transform:scale(1.5);opacity:0}}
+.blink-dot{animation:blink 1.4s steps(1) infinite}
+
+/* ============ index list ============ */
+.index{list-style:none;margin:0;padding:0;border-top:1px solid var(--line-l)}
+.dark .index{border-top-color:var(--line-d)}
+.index li{
+  display:grid;grid-template-columns:78px minmax(0,1.05fr) minmax(0,1.35fr) auto;
+  gap:22px;align-items:baseline;padding:26px 6px;border-bottom:1px solid var(--line-l);
+  transition:background .22s,padding-left .22s;cursor:default
+}
+.dark .index li{border-bottom-color:var(--line-d)}
+.index li:hover{background:rgba(111,134,255,.06);padding-left:14px}
+.idx{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--acc)}
+.dark .idx{color:var(--acc-d)}
+.ititle{font-size:clamp(18px,2.2vw,25px);font-weight:500;letter-spacing:-.02em}
+a.ititle{transition:color .2s}
+a.ititle::after{content:" →";font-family:var(--mono);font-size:.7em;color:var(--acc-d);opacity:0;transition:opacity .2s}
+a.ititle:hover{color:var(--acc-d)}
+a.ititle:hover::after{opacity:1}
+.deep{font-family:var(--mono);font-size:13px;color:var(--acc-d);white-space:nowrap}
+.deep:hover{text-decoration:underline;text-underline-offset:3px}
+.idesc{color:var(--mut-l);font-size:14.5px;line-height:1.55}
+.dark .idesc{color:var(--mut-d)}
+.icode{font-family:var(--mono);font-size:11.5px;color:var(--mut-l);
+  border:1px solid var(--line-l);padding:5px 9px;white-space:nowrap}
+.dark .icode{color:var(--mut-d);border-color:var(--line-d)}
+@media(max-width:880px){
+  .index li{grid-template-columns:52px 1fr;gap:14px}
+  .idesc,.icode{grid-column:2}
+}
+
+/* ============ feature grid ============ */
+.fgrid{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line-l);border-left:1px solid var(--line-l)}
+.fcell{padding:30px 26px 34px;border-right:1px solid var(--line-l);border-bottom:1px solid var(--line-l);
+  transition:background .25s,transform .25s}
+.fcell:hover{background:#fff;transform:translateY(-2px)}
+.fcell .num{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--acc)}
+.fcell h3{margin:16px 0 10px;font-size:19px;font-weight:500;letter-spacing:-.015em}
+.fcell p{margin:0;color:var(--mut-l);font-size:14.5px;line-height:1.6}
+@media(max-width:900px){.fgrid{grid-template-columns:1fr}}
+@media(max-width:900px){.fgrid .fcell{border-right:0}}
+
+/* ============ charts ============ */
+.charts{display:grid;grid-template-columns:1.1fr .9fr;gap:22px;margin-top:34px}
+@media(max-width:900px){.charts{grid-template-columns:1fr}}
+.chart-card{border:1px solid var(--line-l);background:rgba(255,255,255,.4)}
+.chart-card .ch-hd{padding:13px 18px;border-bottom:1px solid var(--line-l);font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--mut-l);
+  display:flex;justify-content:space-between;gap:10px}
+.chart-card .ch-hd .tag{color:var(--acc)}
+.chart-card .ch-bd{padding:20px 18px 22px}
+.brow{margin:0 0 18px}
+.brow:last-child{margin-bottom:0}
+.brow .bl{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;margin-bottom:8px}
+.brow .bl b{font-weight:500}
+.brow .bl .bv{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.brow .bl .bv.hot{color:var(--acc);font-weight:600}
+.track{height:8px;background:rgba(21,23,28,.09);border-radius:99px;overflow:hidden}
+.track i{display:block;height:100%;width:0;border-radius:99px;
+  background:linear-gradient(90deg,var(--acc),#a5b4ff);transition:width 1.3s cubic-bezier(.2,.7,.2,1)}
+.track.dim i{background:#b9bcc4}
+.in .track i{width:var(--w)}
+.donut-wrap{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.donut{width:132px;height:132px;flex:none;transform:rotate(-90deg)}
+.donut .bg{fill:none;stroke:rgba(21,23,28,.1);stroke-width:12}
+.donut .fg{fill:none;stroke:var(--acc);stroke-width:12;stroke-linecap:round;
+  stroke-dasharray:339.29;stroke-dashoffset:339.29;transition:stroke-dashoffset 1.6s cubic-bezier(.2,.7,.2,1) .2s}
+.in .donut .fg{stroke-dashoffset:44.2}
+.donut-c{font-size:13.5px;color:var(--mut-l);line-height:1.6;flex:1;min-width:180px}
+.donut-c b{font-size:30px;font-weight:600;letter-spacing:-.03em;color:var(--t);display:block;line-height:1.1}
+.mini-note{margin-top:16px;padding-top:14px;border-top:1px solid var(--line-l);font-size:13px;color:var(--mut-l)}
+
+/* ============ table ============ */
+.tbl-wrap{border:1px solid var(--line-l);margin-top:34px}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th,td{text-align:left;padding:16px 20px;border-bottom:1px solid var(--line-l)}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut-l);font-weight:400}
+tr:last-child td{border-bottom:0}
+tbody tr{transition:background .2s}
+tbody tr:hover{background:rgba(111,134,255,.05)}
+td.num,th.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.hl{color:var(--acc);font-weight:600}
+tfoot td{color:var(--mut-l);font-size:12.5px;letter-spacing:.01em}
+
+/* ============ platform shots ============ */
+.shots{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:30px}
+@media(max-width:900px){.shots{grid-template-columns:1fr}}
+.shot{border:1px solid var(--line-d);background:#14161c;overflow:hidden;transition:transform .3s cubic-bezier(.2,.7,.2,1),border-color .3s}
+.shot:hover{transform:translateY(-4px);border-color:rgba(154,169,255,.5)}
+.shot .sbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line-d)}
+.shot .sbar i{width:8px;height:8px;border-radius:50%;background:#3a3f4b}
+.shot .sbar i:first-child{background:#59637a}
+.shot .sbar span{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--mut-d);
+  border:1px solid var(--line-d);padding:2px 8px;border-radius:99px}
+.shot svg{display:block;width:100%;height:auto;transition:transform .4s cubic-bezier(.2,.7,.2,1)}
+.shot:hover svg{transform:scale(1.025)}
+.shot .scap{padding:11px 14px;border-top:1px solid var(--line-d);font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut-d)}
+.shot .scap b{color:var(--acc-d);font-weight:400}
+
+/* ============ run / code ============ */
+.codegrid{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+@media(max-width:820px){.codegrid{grid-template-columns:1fr}}
+.panel{border:1px solid var(--line-l);transition:transform .3s cubic-bezier(.2,.7,.2,1),box-shadow .3s}
+.panel:hover{transform:translateY(-3px);box-shadow:0 18px 40px -28px rgba(21,23,28,.45)}
+.dark-mode .panel{border-color:var(--line-d)}
+.panel .ph{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:13px 16px;border-bottom:1px solid var(--line-l);font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--mut-l)}
+.panel .ph .tag{color:var(--acc)}
+.panel pre{margin:0;background:var(--ink);color:#dfe3ea;padding:18px 18px;overflow:auto;
+  font-family:var(--mono);font-size:12.5px;line-height:1.75}
+.panel pre .c{color:#8b93a6}
+.panel pre .g{color:var(--acc-d)}
+.panel pre.typing::after{content:"▊";color:var(--acc-d);animation:blink 1.1s steps(1) infinite}
+.notice{display:flex;gap:14px;align-items:flex-start;margin-top:22px;padding:18px 20px;
+  border:1px solid var(--line-l);border-left:2px solid var(--acc);background:rgba(111,134,255,.05)}
+.notice .nt{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);white-space:nowrap;padding-top:2px}
+.notice p{margin:0;font-size:14px;color:var(--mut-l);line-height:1.6}
+.notice code,.inline-code{font-family:var(--mono);font-size:12.5px;background:rgba(21,23,28,.06);padding:2px 6px}
+
+/* ============ team ============ */
+.team{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line-l);border-left:1px solid var(--line-l)}
+.person{padding:26px 24px;border-right:1px solid var(--line-l);border-bottom:1px solid var(--line-l);
+  transition:background .25s,transform .25s}
+.person:hover{background:#fff;transform:translateY(-2px)}
+.person .av{width:44px;height:44px;border-radius:8px;background:var(--ink);color:var(--t-inv);
+  display:grid;place-items:center;font-family:var(--mono);font-size:13px;letter-spacing:.02em;transition:transform .3s}
+.person:hover .av{transform:scale(1.06) rotate(-3deg)}
+.person:nth-child(1) .av{background:linear-gradient(135deg,#1b2130,#3b4666)}
+.person:nth-child(2) .av{background:linear-gradient(135deg,#23262e,#4a5468)}
+.person:nth-child(3) .av{background:linear-gradient(135deg,#1f2a33,#2f5a5c)}
+.person:nth-child(4) .av{background:linear-gradient(135deg,#26232e,#5a4a6e)}
+.person .nm{display:block;margin-top:16px;font-weight:500;font-size:16px;letter-spacing:-.01em}
+.person .rl{display:block;font-family:var(--mono);font-size:11px;color:var(--mut-l);margin-top:5px;letter-spacing:.06em}
+@media(max-width:900px){.team{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.team{grid-template-columns:1fr}}
+
+/* ============ footer ============ */
+footer{background:var(--ink);color:var(--t-inv);padding:clamp(56px,7vw,90px) 0 34px;border-top:1px solid var(--line-d);overflow:hidden;position:relative}
+.fcols{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:34px;padding-bottom:52px;border-bottom:1px solid var(--line-d)}
+.fcol h4{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--mut-d);font-weight:400;margin:0 0 16px}
+.fcol a,.fcol span{display:block;color:var(--t-inv);font-size:14.5px;padding:7px 0;opacity:.82;transition:opacity .2s,color .2s,transform .2s}
+.fcol a:hover{opacity:1;color:var(--acc-d);transform:translateX(2px)}
+.fcol .fbig{font-size:clamp(24px,3vw,36px);font-weight:600;letter-spacing:-.03em;line-height:1.05;opacity:1;padding:0;max-width:16ch}
+.legal{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;padding-top:22px;color:var(--mut-d);font-size:12.5px;font-family:var(--mono);letter-spacing:.03em}
+.legal a{opacity:.9}
+.legal a:hover{color:var(--acc-d)}
+@media(max-width:820px){.fcols{grid-template-columns:1fr 1fr}}
+
+/* ============ reveal ============ */
+.rv{opacity:0;transform:translateY(16px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);transition-delay:var(--d,0s)}
+.rv.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .rv{opacity:1;transform:none;transition:none}
+  .btn:hover,.nav-links a::after{transition:none}
+  .hero::before,.hero::after,.snap,.ticker-track,.anim-dash,.pulse-ring,.blink-dot,.live::after,.caret::after,.panel pre.typing::after{animation:none!important}
+  .ticker-track{transform:none}
+  .snap-log li{opacity:1;transform:none;animation:none}
+  .track i{width:var(--w)!important}
+  .in .donut .fg{stroke-dashoffset:44.2}
+  .conf i{width:86.96%}
+  .metrics.in .spark i::after{width:var(--w,60%)}
+}
+</style>
+</head>
+<body>
+<div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+
+<!-- announcement strip -->
+<div class="strip" id="strip">
+  <span><b>Batch B12</b> · Phase-1 Review Build — this landing page is fully isolated at <b>:8081</b>.</span>
+  <a href="#run">How to run ↓</a>
+  <button class="strip-x" aria-label="Dismiss announcement" onclick="document.getElementById('strip').remove()">✕</button>
+</div>
+
+<nav>
+  <div class="wrap nav-in">
+    <a class="brand" href="#top"><span class="mark">◈</span>Failure Attribution<small>B12 · GRIET</small></a>
+    <div class="nav-links">
+      <a href="#pipeline">Pipeline</a>
+      <a href="#results">Results</a>
+      <a href="#platform">Platform</a>
+      <a href="#run">Run</a>
+      <a href="#team">Team</a>
+    </div>
+    <div class="nav-cta">
+      <a class="btn solid" href="http://localhost:5173" target="_blank" rel="noopener">Open Live App <span class="rs">↗</span></a>
+    </div>
+  </div>
+</nav>
+
+<!-- hero -->
+<header class="hero" id="top">
+  <div class="wrap">
+    <p class="eyebrow"><span class="live" aria-hidden="true"></span><span class="arrow">↳</span> B.Tech Major Project Phase-1 · Batch B12 · Dept. of CSE · GRIET</p>
+    <h1>Automated Failure Attribution for LLM <em>Multi-Agent Systems</em></h1>
+    <p class="sub">When a multi-agent run crashes at step 14, which agent actually caused it? This neuro-symbolic engine stops blaming the terminal agent and finds the true root cause — via token budgeting, StepJudge evaluation, information-dependency DAG, and backward causal traversal.</p>
+    <div class="cta">
+      <a class="btn solid" href="http://localhost:5173" target="_blank" rel="noopener">Open Live App <span class="rs">↗</span></a>
+      <a class="btn" href="http://localhost:8000/docs" target="_blank" rel="noopener">Swagger API <span class="rs">↗</span></a>
+      <a class="btn link" href="#pipeline">How it works ↓</a>
+    </div>
+    <div class="metarow">
+      <div class="m"><span class="k">Backend</span><span class="v">FastAPI :8000</span></div>
+      <div class="m"><span class="k">App</span><span class="v">React + Vite :5173</span></div>
+      <div class="m"><span class="k">Dashboard</span><span class="v">Streamlit :8501</span></div>
+      <div class="m"><span class="k">This page</span><span class="v">:8081 · isolated</span></div>
+    </div>
+
+    <!-- forensic snapshot visual -->
+    <div class="snap" id="snap">
+      <div class="snap-hd"><span class="dots"><i></i><i></i><i></i></span><span>trace:// who&amp;when · run 042 — s14 crash</span><span class="ok-tag">s* isolated</span></div>
+      <div class="snap-bd">
+        <div>
+          <p class="snap-cap">Causal ancestors · Anc(s14)</p>
+          <svg viewBox="0 0 340 120" role="img" aria-label="Mini causal graph from step 7 root to step 14 crash">
+            <line x1="52" y1="60" x2="128" y2="34" stroke="rgba(255,255,255,.3)" stroke-width="1.5"/>
+            <line x1="52" y1="60" x2="128" y2="88" stroke="rgba(255,255,255,.3)" stroke-width="1.5"/>
+            <line x1="164" y1="34" x2="236" y2="60" stroke="rgba(255,255,255,.3)" stroke-width="1.5"/>
+            <line x1="164" y1="88" x2="236" y2="60" stroke="rgba(255,255,255,.3)" stroke-width="1.5"/>
+            <line x1="272" y1="60" x2="306" y2="60" stroke="rgba(255,255,255,.3)" stroke-width="1.5"/>
+            <path d="M306 60 L272 60 L236 60 L164 34 L52 60" fill="none" stroke="#9aa9ff" stroke-width="2" class="anim-dash"/>
+            <circle cx="34" cy="60" r="16" fill="rgba(111,134,255,.2)" stroke="#9aa9ff" stroke-width="1.5"/>
+            <text x="34" y="64" text-anchor="middle" fill="#f4f5f6" font-size="10" font-family="JetBrains Mono,monospace">s7</text>
+            <circle cx="146" cy="34" r="13" fill="#23262e" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+            <text x="146" y="38" text-anchor="middle" fill="#cfd2d6" font-size="9" font-family="JetBrains Mono,monospace">s11</text>
+            <circle cx="146" cy="88" r="13" fill="#23262e" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+            <text x="146" y="92" text-anchor="middle" fill="#cfd2d6" font-size="9" font-family="JetBrains Mono,monospace">s12</text>
+            <circle cx="254" cy="60" r="13" fill="#23262e" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+            <text x="254" y="64" text-anchor="middle" fill="#cfd2d6" font-size="9" font-family="JetBrains Mono,monospace">s13</text>
+            <circle cx="322" cy="60" r="15" fill="rgba(255,143,143,.15)" stroke="#ff8f8f" stroke-width="1.5"/>
+            <text x="322" y="64" text-anchor="middle" fill="#ff8f8f" font-size="9" font-family="JetBrains Mono,monospace">s14</text>
+          </svg>
+        </div>
+        <div>
+          <p class="snap-cap">StepJudge verdicts</p>
+          <ul class="snap-log">
+            <li><span class="chip ok">OK</span>s11 · ToolAgent — args valid</li>
+            <li><span class="chip ok">OK</span>s13 · inherited, not origin</li>
+            <li><span class="chip fail">FAIL</span>s14 · crash manifestation</li>
+            <li class="caret"><span class="chip dim">TRACE</span>walking Anc(s14)…</li>
+          </ul>
+        </div>
+        <div>
+          <p class="snap-cap">Root cause</p>
+          <p class="verdict-big">s* = <b>s7 · PlannerAgent</b></p>
+          <p class="snap-cap" style="margin:0">Confidence 86.96%</p>
+          <div class="conf"><i></i></div>
+          <p class="snap-cap" style="margin:12px 0 0">All-at-Once blamed s14 ✗</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="hero-mark" id="heroMark" aria-hidden="true">ATTRIBUTION</div>
+</header>
+
+<!-- ticker -->
+<div class="ticker" aria-hidden="true"><div class="ticker-track" id="tickerTrack">
+  <span><b>184</b> who&amp;when traces</span><span>autogen · chatdev · metagpt</span><span><b>86.96%</b> attribution</span><span><b>61.2%</b> localization vs 14.2%</span><span><b>−78.2%</b> tokens · sha-256 cache</span><span><b>27/27</b> tests green</span><span>o(vc+ec) traversal</span>
+  <span><b>184</b> who&amp;when traces</span><span>autogen · chatdev · metagpt</span><span><b>86.96%</b> attribution</span><span><b>61.2%</b> localization vs 14.2%</span><span><b>−78.2%</b> tokens · sha-256 cache</span><span><b>27/27</b> tests green</span><span>o(vc+ec) traversal</span>
+</div></div>
+
+<!-- metrics -->
+<section class="light" aria-label="Key results">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow on-light"><span class="arrow">↳</span> Measured outcomes</p>
+        <h2>Numbers that survive the viva.</h2>
+      </div>
+      <p class="lead" style="max-width:40ch">Every figure below is reproducible against the 184-trace Who&amp;When benchmark and the 27-test suite.</p>
+    </div>
+    <div class="metrics rv" id="metrics">
+      <div class="metric" style="--d:.0s"><span class="n"><span class="cv" data-target="86.96" data-dec="2">0.00</span><span class="u">%</span></span><span class="lbl">Attribution accuracy</span><p class="d">on 184 Who&amp;When traces (AutoGen / ChatDev / MetaGPT)</p><span class="spark"><i style="--w:87%"></i></span></div>
+      <div class="metric" style="--d:.07s"><span class="n"><span class="cv" data-target="61.2" data-dec="1">0.0</span><span class="u">%</span></span><span class="lbl">Step localization</span><p class="d">vs 14.2% All-at-Once baseline — recency bias suppressed</p><span class="spark"><i style="--w:61%"></i></span></div>
+      <div class="metric" style="--d:.14s"><span class="n"><span class="cv" data-target="78.2" data-dec="1">0.0</span><span class="u">%</span></span><span class="lbl">Tokens saved</span><p class="d">SHA-256 deterministic prompt cache · ~1.2 ms cached eval</p><span class="spark"><i style="--w:78%"></i></span></div>
+      <div class="metric" style="--d:.21s"><span class="n">O(V<span class="u">c</span>+E<span class="u">c</span>)</span><span class="lbl">Traversal cost</span><p class="d">Backward walk over causal ancestors only, not the full trace</p><span class="spark"><i style="--w:34%"></i></span></div>
+      <div class="metric" style="--d:.28s"><span class="n"><span class="cv" data-target="27" data-dec="0">0</span><span class="u">/27</span></span><span class="lbl">Tests passing</span><p class="d">Pytest unit + integration suite, green</p><span class="spark"><i style="--w:100%"></i></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- pipeline -->
+<section class="dark" id="pipeline">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow"><span class="arrow">↳</span> 01 — Engine</p>
+        <h2>Five-stage neuro-symbolic pipeline</h2>
+      </div>
+      <p class="lead">Symbolic structure constrains the LLM judge, so evaluation is causal — not vibes. <a class="deep" href="stages/overview.html">Open the stage deep-dives →</a></p>
+    </div>
+
+    <div class="flow rv" id="flowStrip">
+      <span class="hot">trace.json</span>
+      <span class="sep">→</span><a class="st" data-s="1" href="stages/01-token-budgeting.html">1 Budget</a>
+      <span class="sep">→</span><a class="st" data-s="2" href="stages/02-stepjudge-cache.html">2 StepJudge</a>
+      <span class="sep">→</span><a class="st" data-s="3" href="stages/03-dependency-dag.html">3 DAG</a>
+      <span class="sep">→</span><a class="st" data-s="4" href="stages/04-backward-traversal.html">4 Backward traversal</a>
+      <span class="sep">→</span><a class="st" data-s="5" href="stages/05-root-vs-symptom.html">5 Root vs Symptom</a>
+      <span class="sep">→</span><span class="hot">report</span>
+    </div>
+
+    <div class="pipe-visual rv">
+      <div class="pv-hd"><span>causal graph · crash at s14, origin at s7</span><span class="tag">live traversal</span></div>
+      <svg viewBox="0 0 760 250" role="img" aria-label="Dependency DAG with backward traversal from step 14 crash to step 7 root">
+        <!-- dependency edges -->
+        <g stroke="rgba(255,255,255,.28)" stroke-width="1.5">
+          <line x1="120" y1="125" x2="262" y2="62"/><line x1="120" y1="125" x2="262" y2="190"/>
+          <line x1="318" y1="62" x2="452" y2="125"/><line x1="318" y1="190" x2="452" y2="125"/>
+          <line x1="508" y1="125" x2="612" y2="125"/>
+        </g>
+        <!-- backward traversal overlay -->
+        <path d="M640 125 L480 125 L290 62 L120 125" fill="none" stroke="#9aa9ff" stroke-width="2.5" class="anim-dash"/>
+        <!-- nodes -->
+        <g class="node" id="pn-root">
+          <circle class="pulse-ring" cx="92" cy="125" r="26" fill="none" stroke="#9aa9ff" stroke-width="1.5"/>
+          <circle class="face" cx="92" cy="125" r="24" fill="rgba(111,134,255,.22)" stroke="#9aa9ff" stroke-width="1.5"/>
+          <text x="92" y="121" text-anchor="middle" fill="#f4f5f6" font-size="12" font-family="JetBrains Mono,monospace">s7</text>
+          <text x="92" y="136" text-anchor="middle" fill="#9aa9ff" font-size="9" font-family="JetBrains Mono,monospace">ROOT</text>
+          <text x="92" y="168" text-anchor="middle" fill="rgba(244,245,246,.62)" font-size="10" font-family="JetBrains Mono,monospace">PlannerAgent</text>
+        </g>
+        <g class="node">
+          <circle class="face" cx="290" cy="62" r="24" fill="#1c2029" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+          <text x="290" y="58" text-anchor="middle" fill="#f4f5f6" font-size="12" font-family="JetBrains Mono,monospace">s11</text>
+          <text x="290" y="72" text-anchor="middle" fill="rgba(244,245,246,.62)" font-size="9" font-family="JetBrains Mono,monospace">OK</text>
+          <text x="290" y="104" text-anchor="middle" fill="rgba(244,245,246,.62)" font-size="10" font-family="JetBrains Mono,monospace">ToolAgent</text>
+        </g>
+        <g class="node">
+          <circle class="face" cx="290" cy="190" r="24" fill="#1c2029" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+          <text x="290" y="186" text-anchor="middle" fill="#f4f5f6" font-size="12" font-family="JetBrains Mono,monospace">s12</text>
+          <text x="290" y="200" text-anchor="middle" fill="rgba(244,245,246,.62)" font-size="9" font-family="JetBrains Mono,monospace">OK</text>
+        </g>
+        <g class="node">
+          <circle class="face" cx="480" cy="125" r="24" fill="#1c2029" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+          <text x="480" y="121" text-anchor="middle" fill="#f4f5f6" font-size="12" font-family="JetBrains Mono,monospace">s13</text>
+          <text x="480" y="136" text-anchor="middle" fill="rgba(244,245,246,.62)" font-size="9" font-family="JetBrains Mono,monospace">INHERITED</text>
+        </g>
+        <g class="node" id="pn-crash">
+          <circle class="face" cx="640" cy="125" r="24" fill="rgba(255,143,143,.14)" stroke="#ff8f8f" stroke-width="1.6"/>
+          <text x="640" y="121" text-anchor="middle" fill="#ff8f8f" font-size="12" font-family="JetBrains Mono,monospace">s14</text>
+          <text x="640" y="136" text-anchor="middle" fill="#ff8f8f" font-size="9" font-family="JetBrains Mono,monospace">CRASH</text>
+          <circle class="blink-dot" cx="664" cy="101" r="4" fill="#ff8f8f"/>
+        </g>
+        <text x="384" y="232" text-anchor="middle" fill="rgba(244,245,246,.5)" font-size="11" font-family="JetBrains Mono,monospace">All-at-Once blamed s14 ✗ — backward walk isolates s7 ✓</text>
+      </svg>
+      <div class="pv-ft">
+        <span class="lg-dep"><i></i>information dependency</span>
+        <span class="lg-back"><i></i>backward traversal (animated)</span>
+        <span class="lg-root"><b>◉ s7</b>&nbsp;true root</span>
+        <span class="lg-crash"><b>◉ s14</b>&nbsp;manifestation</span>
+      </div>
+    </div>
+
+    <ol class="index rv" id="pipeIndex">
+      <li data-s="1"><span class="idx">01</span><a class="ititle" href="stages/01-token-budgeting.html">Token budgeting</a><span class="idesc">Segmentation + context-window manager keeps each judge call inside budget.</span><span class="icode">segmentation.py</span></li>
+      <li data-s="2"><span class="idx">02</span><a class="ititle" href="stages/02-stepjudge-cache.html">StepJudge</a><span class="idesc">Per-step LLM verdict with a persistent SQLite cache.</span><span class="icode">step_judge.py + cache.py</span></li>
+      <li data-s="3"><span class="idx">03</span><a class="ititle" href="stages/03-dependency-dag.html">Dependency DAG</a><span class="idesc">Information links between steps and agents.</span><span class="icode">dependency_linker.py</span></li>
+      <li data-s="4"><span class="idx">04</span><a class="ititle" href="stages/04-backward-traversal.html">Backward traversal</a><span class="idesc">Two-phase walk from manifestation back to origin.</span><span class="icode">backward_traversal.py</span></li>
+      <li data-s="5"><span class="idx">05</span><a class="ititle" href="stages/05-root-vs-symptom.html">Root vs symptom</a><span class="idesc">Isolates s* from inherited failures via deterministic hashing.</span><span class="icode">SHA256(goal+ctx+action)</span></li>
+    </ol>
+  </div>
+</section>
+
+<!-- results -->
+<section class="light" id="results">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow on-light"><span class="arrow">↳</span> 02 — Results</p>
+        <h2>Why it beats monolithic judging</h2>
+      </div>
+      <p class="lead">All-at-Once LLM judges blame wherever the crash surfaced. Backward traversal follows causality.</p>
+    </div>
+
+    <div class="fgrid rv">
+      <div class="fcell"><span class="num">01</span><h3>Dependency-aware traversal</h3><p>Visits only causal ancestors Anc(s<sub>manifest</sub>), cutting noise from unrelated turns.</p></div>
+      <div class="fcell"><span class="num">02</span><h3>Deterministic caching</h3><p>SQLite B-tree on SHA-256 prompt hash — same prompt, same verdict, ~1.2 ms, no re-spend.</p></div>
+      <div class="fcell"><span class="num">03</span><h3>Recency-bias kill</h3><p>Localization 14.2% → <span class="hl">61.2%</span>, overall attribution <span class="hl">86.96%</span> vs ICML'25 Who&amp;When baselines.</p></div>
+    </div>
+
+    <div class="charts rv" id="charts">
+      <div class="chart-card">
+        <div class="ch-hd"><span>head-to-head · step localization</span><span class="tag">animated</span></div>
+        <div class="ch-bd">
+          <div class="brow"><div class="bl"><b>This system · backward traversal</b><span class="bv hot">61.2%</span></div><div class="track"><i style="--w:61.2%"></i></div></div>
+          <div class="brow"><div class="bl"><b>All-at-Once LLM baseline</b><span class="bv">14.2%</span></div><div class="track dim"><i style="--w:14.2%"></i></div></div>
+          <div class="brow"><div class="bl"><b>Overall attribution · this system</b><span class="bv hot">86.96%</span></div><div class="track"><i style="--w:86.96%"></i></div></div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="ch-hd"><span>attribution accuracy</span><span class="tag">184 traces</span></div>
+        <div class="ch-bd">
+          <div class="donut-wrap">
+            <svg class="donut" viewBox="0 0 120 120" role="img" aria-label="86.96 percent attribution accuracy">
+              <circle class="bg" cx="60" cy="60" r="54"/>
+              <circle class="fg" cx="60" cy="60" r="54"/>
+            </svg>
+            <div class="donut-c"><b>86.96%</b>attribution across AutoGen + ChatDev + MetaGPT traces.</div>
+          </div>
+          <div class="mini-note">Cost side: <b style="color:var(--acc)">−78.2%</b> tokens via SHA-256 cache · ~1.2 ms cache hit.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tbl-wrap rv">
+      <table>
+        <thead><tr><th>Benchmark (184 traces)</th><th>Method</th><th>Score</th></tr></thead>
+        <tbody>
+          <tr><td>Who &amp; When · AutoGen + ChatDev + MetaGPT</td><td>This system (neuro-symbolic)</td><td class="num hl">86.96% attribution</td></tr>
+          <tr><td>Step localization</td><td>Backward traversal</td><td class="num hl">61.2%</td></tr>
+          <tr><td>Step localization</td><td>All-at-Once LLM baseline</td><td class="num">14.2%</td></tr>
+          <tr><td>Cost</td><td>SHA-256 cache</td><td class="num hl">−78.2% tokens · ~1.2 ms hit</td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="3">Reproduce with <span class="inline-code">PROJECT/test_all_who_and_when.sh</span></td></tr></tfoot>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- platform -->
+<section class="dark" id="platform">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow"><span class="arrow">↳</span> 03 — Platform</p>
+        <h2>Full-stack forensic platform</h2>
+      </div>
+      <p class="lead">PROJECT/ runs on :5173 + :8000. This landing page is fully separate — no shared imports.</p>
+    </div>
+
+    <div class="shots rv">
+      <div class="shot">
+        <div class="sbar"><i></i><i></i><i></i><span>:5173 · dag</span></div>
+        <svg viewBox="0 0 320 170" role="img" aria-label="Causal DAG preview">
+          <rect x="0" y="0" width="320" height="170" fill="#14161c"/>
+          <g stroke="rgba(255,255,255,.25)" stroke-width="1.2">
+            <line x1="60" y1="85" x2="130" y2="50"/><line x1="60" y1="85" x2="130" y2="120"/>
+            <line x1="170" y1="50" x2="235" y2="85"/><line x1="170" y1="120" x2="235" y2="85"/>
+          </g>
+          <path d="M258 85 L235 85 L170 50 L60 85" fill="none" stroke="#9aa9ff" stroke-width="2" class="anim-dash"/>
+          <circle cx="42" cy="85" r="14" fill="rgba(111,134,255,.25)" stroke="#9aa9ff" stroke-width="1.5"/>
+          <circle cx="150" cy="50" r="11" fill="#23262e" stroke="rgba(255,255,255,.4)"/>
+          <circle cx="150" cy="120" r="11" fill="#23262e" stroke="rgba(255,255,255,.4)"/>
+          <circle cx="216" cy="85" r="11" fill="#23262e" stroke="rgba(255,255,255,.4)"/>
+          <circle cx="278" cy="85" r="13" fill="rgba(255,143,143,.15)" stroke="#ff8f8f" stroke-width="1.5"/>
+          <rect x="18" y="130" width="120" height="18" rx="4" fill="rgba(255,255,255,.06)"/>
+          <rect x="182" y="130" width="120" height="18" rx="4" fill="rgba(111,134,255,.18)"/>
+        </svg>
+        <div class="scap"><b>◉</b> DagVisualizer · causal graph</div>
+      </div>
+      <div class="shot">
+        <div class="sbar"><i></i><i></i><i></i><span>:5173 · matrix</span></div>
+        <svg viewBox="0 0 320 170" role="img" aria-label="Benchmark matrix preview">
+          <rect x="0" y="0" width="320" height="170" fill="#14161c"/>
+          <g>
+            <rect x="70" y="22" width="52" height="26" fill="rgba(111,134,255,.85)"/><rect x="126" y="22" width="52" height="26" fill="rgba(111,134,255,.55)"/><rect x="182" y="22" width="52" height="26" fill="rgba(111,134,255,.3)"/><rect x="238" y="22" width="52" height="26" fill="rgba(255,255,255,.12)"/>
+            <rect x="70" y="52" width="52" height="26" fill="rgba(111,134,255,.6)"/><rect x="126" y="52" width="52" height="26" fill="rgba(111,134,255,.9)"/><rect x="182" y="52" width="52" height="26" fill="rgba(111,134,255,.4)"/><rect x="238" y="52" width="52" height="26" fill="rgba(255,255,255,.1)"/>
+            <rect x="70" y="82" width="52" height="26" fill="rgba(111,134,255,.45)"/><rect x="126" y="82" width="52" height="26" fill="rgba(111,134,255,.65)"/><rect x="182" y="82" width="52" height="26" fill="rgba(111,134,255,.95)"/><rect x="238" y="82" width="52" height="26" fill="rgba(255,255,255,.14)"/>
+            <rect x="70" y="112" width="52" height="26" fill="rgba(255,255,255,.1)"/><rect x="126" y="112" width="52" height="26" fill="rgba(255,255,255,.12)"/><rect x="182" y="112" width="52" height="26" fill="rgba(255,255,255,.16)"/><rect x="238" y="112" width="52" height="26" fill="rgba(255,143,143,.35)"/>
+          </g>
+          <g fill="rgba(244,245,246,.55)" font-size="10" font-family="JetBrains Mono,monospace">
+            <text x="20" y="40">AG</text><text x="20" y="70">CD</text><text x="20" y="100">MG</text><text x="20" y="130">AoA</text>
+          </g>
+        </svg>
+        <div class="scap"><b>◉</b> BenchmarkView · 184-trace matrix</div>
+      </div>
+      <div class="shot">
+        <div class="sbar"><i></i><i></i><i></i><span>:5173 · telemetry</span></div>
+        <svg viewBox="0 0 320 170" role="img" aria-label="Telemetry chart preview">
+          <rect x="0" y="0" width="320" height="170" fill="#14161c"/>
+          <polyline points="20,140 70,120 120,126 170,96 220,102 270,60 300,66" fill="none" stroke="#9aa9ff" stroke-width="2"/>
+          <polygon points="20,140 70,120 120,126 170,96 220,102 270,60 300,66 300,150 20,150" fill="rgba(111,134,255,.15)"/>
+          <g fill="rgba(111,134,255,.5)">
+            <rect x="40" y="118" width="14" height="32"/><rect x="90" y="104" width="14" height="46"/><rect x="140" y="112" width="14" height="38"/><rect x="190" y="92" width="14" height="58"/><rect x="240" y="78" width="14" height="72"/>
+          </g>
+          <circle cx="270" cy="60" r="4" fill="#9aa9ff"><animate attributeName="r" values="4;6;4" dur="2s" repeatCount="indefinite"/></circle>
+          <text x="246" y="44" fill="#9aa9ff" font-size="10" font-family="JetBrains Mono,monospace">1.2ms</text>
+        </svg>
+        <div class="scap"><b>◉</b> Telemetry · cache + latency</div>
+      </div>
+    </div>
+
+    <ol class="index rv">
+      <li><span class="idx">◉</span><a class="ititle" href="platform/01-dag-visualizer.html">DagVisualizer</a><span class="idesc">Interactive vis-network causal DAG of agents and steps.</span><span class="icode">on :5173</span></li>
+      <li><span class="idx">◉</span><a class="ititle" href="platform/02-trace-inspector.html">TraceInspector</a><span class="idesc">Turn-by-turn forensic view with StepJudge verdicts.</span><span class="icode">on :5173</span></li>
+      <li><span class="idx">◉</span><a class="ititle" href="platform/03-benchmark.html">BenchmarkView</a><span class="idesc">Who&amp;When matrix plus a live runner across 184 traces.</span><span class="icode">on :5173</span></li>
+      <li><span class="idx">◉</span><a class="ititle" href="platform/04-custom-ingestion.html">CustomIngestion</a><span class="idesc">1-click presets + raw console-log parser for your own traces.</span><span class="icode">on :5173</span></li>
+      <li><span class="idx">◉</span><a class="ititle" href="platform/05-telemetry.html">Telemetry</a><span class="idesc">Cache hits/misses, storage gauges, backend health.</span><span class="icode">on :5173</span></li>
+      <li><span class="idx">◉</span><a class="ititle" href="platform/06-local-llm.html">Local LLM</a><span class="idesc">Qwen2.5:7b via Ollama + mock heuristic client for offline eval.</span><span class="icode">:11434</span></li>
+    </ol>
+  </div>
+</section>
+
+<!-- run -->
+<section class="light" id="run">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow on-light"><span class="arrow">↳</span> 04 — Run</p>
+        <h2>Run it</h2>
+      </div>
+      <p class="lead">Two isolated worlds. Nothing here touches <span class="inline-code">PROJECT/</span>.</p>
+    </div>
+
+    <div class="codegrid rv">
+      <div class="panel">
+        <div class="ph"><span>This landing · isolated, you are here</span><span class="tag">:8081</span></div>
+<pre class="typing"><span class="c"># zero deps — python stdlib only</span>
+cd landing
+./serve.sh
+<span class="g"># → http://localhost:8081</span></pre>
+      </div>
+      <div class="panel">
+        <div class="ph"><span>Main system · untouched</span><span class="tag">PROJECT/</span></div>
+<pre><span class="c"># backend + frontend together</span>
+cd PROJECT
+./start_all.sh
+<span class="g"># UI  → http://localhost:5173</span>
+<span class="g"># API → http://localhost:8000/docs</span>
+./test_all_who_and_when.sh  <span class="c"># 184 traces</span>
+./run_tests.sh              <span class="c"># 27 tests</span></pre>
+      </div>
+    </div>
+
+    <div class="notice">
+      <span class="nt">// Isolation</span>
+      <p>This folder has no <code>import</code> from <code>PROJECT/</code>, no shared <code>node_modules</code>, no shared venv. Stop with <code>Ctrl+C</code> or <code>pkill -f "http.server 8081"</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- team -->
+<section class="light" id="team" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow on-light"><span class="arrow">↳</span> 05 — Team</p>
+        <h2>Team B12</h2>
+      </div>
+      <p class="lead">Department of CSE, Gokaraju Rangaraju Institute of Engineering and Technology. Guide: Dr. D. Ushasree.</p>
+    </div>
+    <div class="team rv">
+      <div class="person"><div class="av">RP</div><span class="nm">Rachapalli S Prabhaadhithya</span><span class="rl">23241A05Q3</span></div>
+      <div class="person"><div class="av">RA</div><span class="nm">Rathod Ajay</span><span class="rl">23241A05Q4</span></div>
+      <div class="person"><div class="av">NP</div><span class="nm">Noel Paul</span><span class="rl">23241A05Q6</span></div>
+      <div class="person"><div class="av">TN</div><span class="nm">Talagapu Niranjan</span><span class="rl">23241A05R1</span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="fcols">
+      <div class="fcol">
+        <h4>Project</h4>
+        <span class="fbig">Automated Failure Attribution for LLM Multi-Agent Systems</span>
+      </div>
+      <div class="fcol">
+        <h4>Surfaces</h4>
+        <a href="http://localhost:5173" target="_blank" rel="noopener">React App · :5173 ↗</a>
+        <a href="http://localhost:8000/docs" target="_blank" rel="noopener">Swagger API · :8000 ↗</a>
+        <a href="http://localhost:8501" target="_blank" rel="noopener">Streamlit · :8501 ↗</a>
+        <a href="#run">This landing · :8081</a>
+      </div>
+      <div class="fcol">
+        <h4>Navigate</h4>
+        <a href="#pipeline">Pipeline</a>
+        <a href="#results">Results</a>
+        <a href="#platform">Platform</a>
+        <a href="#run">Run</a>
+        <a href="#team">Team</a>
+      </div>
+      <div class="fcol">
+        <h4>Evaluation</h4>
+        <a href="#results">Who&amp;When · 184 traces</a>
+        <a href="#results">Backward traversal · 61.2%</a>
+        <a href="#results">SHA-256 cache · −78.2%</a>
+        <span>27/27 tests passing</span>
+      </div>
+    </div>
+    <div class="legal">
+      <span>© 2026 Batch B12 · Dept. of CSE · GRIET · Phase-1</span>
+      <span>Isolated landing · <a href="http://localhost:8081">localhost:8081</a></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  // anchor clicks offset by sticky nav height
+  document.querySelectorAll('a[href^="#"]').forEach(a=>{
+    a.addEventListener('click',e=>{
+      const id=a.getAttribute('href'); if(!id||id.length<2) return;
+      const t=document.querySelector(id); if(!t) return;
+      e.preventDefault();
+      const y=t.getBoundingClientRect().top+window.scrollY-84;
+      window.scrollTo({top:y,behavior:'smooth'});
+    });
+  });
+  const reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const hasIO='IntersectionObserver' in window;
+
+  // reveal on scroll (stagger via --d) + immediate reveal for above-the-fold
+  const rvEls=document.querySelectorAll('.rv');
+  function inView(el){ const r=el.getBoundingClientRect(); return r.top<window.innerHeight*.92&&r.bottom>0; }
+  if(!reduce&&hasIO){
+    const io=new IntersectionObserver((es)=>{
+      es.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target);} });
+    },{threshold:.12,rootMargin:'0px 0px -8% 0px'});
+    rvEls.forEach(el=>{ if(inView(el)) el.classList.add('in'); else io.observe(el); });
+  }else{ rvEls.forEach(el=>el.classList.add('in')); }
+
+  // scroll progress + hero-mark parallax
+  const bar=document.getElementById('progressBar'), mark=document.getElementById('heroMark');
+  let ticking=false;
+  function onScroll(){
+    if(ticking) return; ticking=true;
+    requestAnimationFrame(()=>{
+      const h=document.documentElement, max=h.scrollHeight-h.clientHeight;
+      const p=max>0?Math.min(1,Math.max(0,(h.scrollTop||window.scrollY)/max)):0;
+      if(bar) bar.style.transform='scaleX('+p+')';
+      if(mark&&!reduce) mark.style.transform='translateY('+(window.scrollY*0.06)+'px)';
+      ticking=false;
+    });
+  }
+  window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+
+  // count-up metrics
+  function countUp(el){
+    const target=parseFloat(el.getAttribute('data-target'));
+    const dec=parseInt(el.getAttribute('data-dec')||'0',10);
+    if(reduce||isNaN(target)){ el.textContent=target.toFixed(dec); return; }
+    const dur=1400, t0=performance.now();
+    function frame(t){
+      const p=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-p,3);
+      el.textContent=(target*e).toFixed(dec);
+      if(p<1) requestAnimationFrame(frame); else el.textContent=target.toFixed(dec);
+    }
+    requestAnimationFrame(frame);
+  }
+  const metrics=document.getElementById('metrics');
+  if(metrics){
+    const vals=metrics.querySelectorAll('.cv');
+    if(!reduce&&hasIO){
+      const mio=new IntersectionObserver((es)=>{
+        es.forEach(en=>{ if(en.isIntersecting){ countUp(en.target); mio.unobserve(en.target);} });
+      },{threshold:.4});
+      vals.forEach(v=>mio.observe(v));
+    }else{ vals.forEach(countUp); }
+  }
+
+  // charts + snap get .in for bar/donut/conf transitions
+  ['charts','snap'].forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    if(!reduce&&hasIO){
+      const cio=new IntersectionObserver((es)=>{
+        es.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); cio.unobserve(en.target);} });
+      },{threshold:.25});
+      cio.observe(el);
+    }else{ el.classList.add('in'); }
+  });
+
+  // pipeline flow cycling + index hover sync
+  const steps=Array.prototype.slice.call(document.querySelectorAll('#flowStrip .st'));
+  if(steps.length&&!reduce){
+    let i=0;
+    setInterval(()=>{
+      steps.forEach(s=>s.classList.remove('on'));
+      steps[i%steps.length].classList.add('on');
+      i++;
+    },1400);
+  }
+  const rows=document.querySelectorAll('#pipeIndex li[data-s]');
+  rows.forEach(li=>{
+    li.addEventListener('mouseenter',()=>{
+      const s=li.getAttribute('data-s');
+      steps.forEach(sp=>sp.classList.toggle('on',sp.getAttribute('data-s')===s));
+    });
+    li.addEventListener('mouseleave',()=>{ steps.forEach(sp=>sp.classList.remove('on')); });
+  });
+})();
+</script>
+</body>
+</html>

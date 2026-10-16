@@ -1,0 +1,33 @@
+# Automated Failure Attribution for LLM-Based Multi-Agent Systems
+# Project Dependencies
+
+# Core Web & API
+fastapi>=0.110.0
+uvicorn>=0.28.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+python-multipart>=0.0.9
+
+# Data Processing & Graph Modeling
+networkx>=3.2.0
+pandas>=2.2.0
+numpy>=1.26.0
+
+# Visualization & Dashboard
+streamlit>=1.32.0
+pyvis>=0.3.2
+matplotlib>=3.8.0
+
+# Task Queue & Storage
+celery>=5.3.0
+redis>=5.0.0
+pymongo>=4.6.0
+
+# LLM & AI Clients
+httpx>=0.27.0
+openai>=1.14.0
+
+# Testing & Utilities
+pytest>=8.0.0
+rich>=13.7.0
+python-dotenv>=1.0.0

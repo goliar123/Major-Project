@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>View 01 · DagVisualizer — Failure Attribution · B12</title>
+<meta name="description" content="DagVisualizer: hierarchical vis-network canvas where root causes glow red, symptoms amber, and clicking any node opens its forensic evidence." />
+<link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body>
+<div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+
+<nav><div class="wrap nav-in">
+  <a class="brand" href="../index.html"><span class="mark">◈</span>Failure Attribution<small>B12 · GRIET</small></a>
+  <div class="pager-top">
+    <a href="../index.html#platform">↑ <span>Platform</span></a>
+    <a href="02-trace-inspector.html"><span>Next ·</span> 02 →</a>
+  </div>
+</div></nav>
+
+<header class="stage-hero">
+  <div class="wrap">
+    <p class="eyebrow"><span class="arrow">↳</span> Platform · View 01 of 06 · Live on :5173</p>
+    <h1>Dag<em>Visualizer</em></h1>
+    <p class="lede">The causal graph you can touch. A hierarchical vis-network canvas renders every step as a color-coded node — red box for the root cause, amber for inherited symptoms, emerald for clean turns. Clicking a node selects the step everywhere: inspector scrolls to it, tooltips show its judge score and reason.</p>
+    <div class="chips">
+      <span class="chip-m">component&nbsp;<b>DagVisualizer.jsx</b></span>
+      <span class="chip-m">engine&nbsp;<b>vis-network · LR hierarchy</b></span>
+      <span class="chip-m">data&nbsp;<b>verdict.graph_nodes</b></span>
+      <span class="chip-m">canvas&nbsp;<b>460 px · physics off</b></span>
+    </div>
+  </div>
+</header>
+
+<section class="light">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow on-light"><span class="arrow">↳</span> What it shows</p>
+        <h2>Verdict as a picture</h2>
+      </div>
+      <p class="lead">Static hierarchical layout — no physics jitter — so the same trace always draws the same graph.</p>
+    </div>
+    <div class="rv">
+      <div class="panel-svg">
+        <div class="ph"><span>canvas mock · run 042</span><span class="tag">svg</span></div>
+        <svg viewBox="0 0 760 330" role="img" aria-label="Mock of the DAG canvas with colored nodes, causal edges, legend, and tooltip">
+          <rect x="0" y="0" width="760" height="330" fill="#14161c"/>
+          <g font-family="JetBrains Mono,monospace" font-size="10">
+            <circle cx="20" cy="26" r="5" fill="#ef4444"/><text x="30" y="30" fill="rgba(244,245,246,.7)">ROOT s*</text>
+            <circle cx="120" cy="26" r="5" fill="#f97316"/><text x="130" y="30" fill="rgba(244,245,246,.7)">SYMPTOM</text>
+            <circle cx="230" cy="26" r="5" fill="#10b981"/><text x="240" y="30" fill="rgba(244,245,246,.7)">NORMAL</text>
+            <circle cx="330" cy="26" r="5" fill="#64748b"/><text x="340" y="30" fill="rgba(244,245,246,.7)">UNREACHED</text>
+            <text x="730" y="30" text-anchor="end" fill="rgba(244,245,246,.5)">＋ － ⛶</text>
+            <line x1="0" y1="44" x2="760" y2="44" stroke="rgba(255,255,255,.12)"/>
+          </g>
+          <g>
+            <line x1="150" y1="150" x2="280" y2="150" stroke="#38bdf8" stroke-width="1.5"/>
+            <line x1="340" y1="150" x2="440" y2="150" stroke="#38bdf8" stroke-width="1.5"/>
+            <line x1="500" y1="150" x2="600" y2="150" stroke="#ef4444" stroke-width="3"/>
+            <line x1="150" y1="150" x2="440" y2="150" stroke="#ef4444" stroke-width="2" stroke-dasharray="6 5"/>
+          </g>
+          <g font-family="JetBrains Mono,monospace" font-size="11" text-anchor="middle">
+            <rect x="95" y="122" width="72" height="56" rx="6" fill="#ef4444"/>
+            <text x="131" y="146" fill="#fff">Step 7</text><text x="131" y="162" fill="#fff" font-size="9">[Planner]</text>
+            <circle cx="310" cy="150" r="26" fill="#10b981"/>
+            <text x="310" y="146" fill="#fff">s11</text><text x="310" y="160" fill="#fff" font-size="9">0.91</text>
+            <circle cx="470" cy="150" r="26" fill="#f97316"/>
+            <text x="470" y="146" fill="#fff">s13</text><text x="470" y="160" fill="#fff" font-size="9">0.44</text>
+            <circle cx="630" cy="150" r="26" fill="#64748b"/>
+            <text x="630" y="146" fill="#fff">s18</text><text x="630" y="160" fill="#fff" font-size="9">—</text>
+          </g>
+          <text x="365" y="135" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono,monospace">total_revenue</text>
+          <g font-family="JetBrains Mono,monospace" font-size="11">
+            <rect x="420" y="200" width="300" height="92" rx="8" fill="#1c2029" stroke="#38bdf8"/>
+            <text x="436" y="226" fill="#38bdf8">Step 7 · PlannerAgent · ROOT_CAUSE</text>
+            <text x="436" y="246" fill="#f4f5f6">Score 0.23 / 1.00 · schema_violation</text>
+            <text x="436" y="266" fill="rgba(244,245,246,.6)" font-size="10">click selects it in the inspector ↓</text>
+          </g>
+        </svg>
+        <div class="pf">red = causal cascade edges · grey labels = data_variable (16 chars) · cyan = selection</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="dark">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow"><span class="arrow">↳</span> Interactions</p>
+        <h2>Hover to suspect, click to convict</h2>
+      </div>
+      <p class="lead">Every visual choice maps to a verdict field — nothing decorative.</p>
+    </div>
+    <ol class="steps rv">
+      <li><span class="sn">a</span><div><b>Read the colors</b><p>Root renders as a large red <code>box</code> with a glow shadow; symptoms are amber dots; clean steps emerald; pruned branches slate. Selected nodes get a cyan border.</p></div></li>
+      <li><span class="sn">b</span><div><b>Follow the red edges</b><p>Edges on the <code>causal_dependency_chain</code> — or sourced at the decisive step — draw red and thick; the rest draw thin blue. Variable labels name the shared identifier.</p></div></li>
+      <li><span class="sn">c</span><div><b>Click to cross-examine</b><p>Clicking a node fires <code>onSelectStep</code>: the TraceInspector auto-scrolls to that turn with its payload, tool output, and judge score.</p></div></li>
+    </ol>
+    <div class="evidence rv">
+      <div class="ev"><span class="n"><span class="cv" data-target="4" data-dec="0">0</span></span><span class="l">Node statuses</span><p>root · symptom · normal · unreached.</p></div>
+      <div class="ev"><span class="n"><span class="cv" data-target="16" data-dec="0">0</span><span class="u">ch</span></span><span class="l">Edge label length</span><p>data_variable truncated, full value in tooltip.</p></div>
+      <div class="ev"><span class="n"><span class="cv" data-target="100" data-dec="0">0</span><span class="u">ms</span></span><span class="l">Tooltip delay</span><p>Score + reason on hover, instantly.</p></div>
+      <div class="ev"><span class="n"><span class="cv" data-target="3" data-dec="0">0</span></span><span class="l">Canvas controls</span><p>Zoom in · zoom out · fit (400 ms ease).</p></div>
+    </div>
+    <div class="pager rv" style="margin-top:26px">
+      <a class="pg" href="../index.html#platform"><span class="k">← Back · platform</span><span class="t">Landing <em>overview</em></span></a>
+      <a class="pg next" href="02-trace-inspector.html"><span class="k">Next · view 02</span><span class="t">TraceInspector <em>→</em></span></a>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap"><div class="frow">
+  <span>© 2026 Batch B12 · Dept. of CSE · GRIET · Phase-1</span>
+  <span><a href="../index.html#platform">← platform</a> · <a href="02-trace-inspector.html">02 →</a> · <a href="../index.html">index</a></span>
+</div></div></footer>
+
+<script>
+(function(){
+  const reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const hasIO='IntersectionObserver' in window;
+  const rvEls=document.querySelectorAll('.rv');
+  function inView(el){const r=el.getBoundingClientRect();return r.top<window.innerHeight*.92&&r.bottom>0;}
+  if(!reduce&&hasIO){
+    const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);}});},{threshold:.12,rootMargin:'0px 0px -8% 0px'});
+    rvEls.forEach(el=>{if(inView(el))el.classList.add('in');else io.observe(el);});
+  }else{rvEls.forEach(el=>el.classList.add('in'));}
+  const bar=document.getElementById('progressBar');let ticking=false;
+  window.addEventListener('scroll',()=>{if(ticking)return;ticking=true;requestAnimationFrame(()=>{
+    const h=document.documentElement,max=h.scrollHeight-h.clientHeight;
+    bar.style.transform='scaleX('+(max>0?Math.min(1,Math.max(0,h.scrollTop/max)):0)+')';ticking=false;});},{passive:true});
+  function countUp(el){
+    const target=parseFloat(el.getAttribute('data-target')),dec=parseInt(el.getAttribute('data-dec')||'0',10);
+    if(reduce||isNaN(target)){el.textContent=target;return;}
+    const dur=1300,t0=performance.now();
+    (function frame(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);
+      el.textContent=Math.round(target*e);if(p<1)requestAnimationFrame(frame);})(t0);
+  }
+  const vals=document.querySelectorAll('.cv');
+  if(!reduce&&hasIO){
+    const mio=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){countUp(en.target);mio.unobserve(en.target);}});},{threshold:.4});
+    vals.forEach(v=>mio.observe(v));
+  }else{vals.forEach(countUp);}
+})();
+</script>
+</body>
+</html>
