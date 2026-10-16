@@ -1,9 +1,12 @@
 /**
  * API Service for Automated Failure Attribution Engine
- * Connects to FastAPI backend running on http://localhost:8000/api/v1
+ * Default: local backend at http://localhost:8000/api/v1
+ * Deployed: set VITE_API_BASE_URL at build time, e.g.
+ *   https://your-backend.onrender.com/api/v1
  */
-
-const API_BASE = "http://localhost:8000/api/v1";
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1"
+).replace(/\/$/, "");
 
 export async function fetchHealth() {
   try {
